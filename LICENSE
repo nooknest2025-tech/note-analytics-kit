@@ -1,21 +1,19 @@
-MIT License
+note分析キット 利用規約（ライセンス）
 
-Copyright (c) 2026 タク
+Copyright (c) 2026 TAKU（https://github.com/nooknest2025-tech）
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+このキット（プログラム・シート・手順書・画像を含む）は、次の条件で無料で使えます。
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+【やってOK】
+- 個人や自分の仕事のために、無料で使うこと
+- 自分用にコピーして、自分の使いやすいように書き換えること
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+【禁止】
+- このキット、または書き換えたものを、販売すること（有料記事・有料マガジン・メンバーシップ特典・有料サービスに含める場合も含みます）
+- 作者名（TAKU）とこの利用規約を消したり、自分が作ったものとして配ったりすること
+- 書き換えたものを、作者の許可なく再配布すること（紹介するときは、元の配布ページへのリンクを貼ってください）
+
+【おことわり】
+- このキットは「そのまま」の状態で提供します。動作や結果について、作者は保証しません。
+- 使ったことで起きた損害について、作者は責任を負いません。
+- note の仕様変更などで、動かなくなることがあります。
