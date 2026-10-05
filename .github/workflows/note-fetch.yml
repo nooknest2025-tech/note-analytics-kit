@@ -1,0 +1,62 @@
+# note分析キット：毎朝 note の数字を取得して、自分の Google スプレッドシートへ送る
+# 「Use this template」で作った自分用リポジトリは、必ず Private（非公開）にしてください。
+# - Cookie（NOTE_SESSION）・受け取りURL・合言葉は GitHub の Secrets にだけ置く。ログには出さない（::add-mask:: と伏せ字）。
+# - 取得したデータはリポジトリに保存・コミットしない（アーティファクトも作らない）。
+name: note-fetch
+on:
+  schedule:
+    - cron: "10 20 * * *"   # 毎日 05:10 JST（= 20:10 UTC）。GitHub の混雑で数分〜1時間ほど遅れることがあります
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "お試し（シートに送らない）"
+        type: boolean
+        default: false
+      no_dashboard:
+        description: "Cookie を使う PV の自動取得をしない"
+        type: boolean
+        default: false
+permissions:
+  contents: read          # リポジトリへの書き込み権限は与えない
+concurrency:
+  group: note-fetch
+  cancel-in-progress: false
+jobs:
+  fetch:
+    # 配布元（テンプレート）では動かさない。自分用にコピーしたリポジトリでだけ動きます
+    if: github.repository != 'fein0618-design/note-analytics-kit'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 設定チェック（Secrets が未登録なら案内だけして終わる）
+        id: chk
+        env:
+          NA_RECEIVER_URL: ${{ secrets.NA_RECEIVER_URL }}
+          NA_RECEIVER_SECRET: ${{ secrets.NA_RECEIVER_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" != "true" ] && { [ -z "$NA_RECEIVER_URL" ] || [ -z "$NA_RECEIVER_SECRET" ]; }; then
+            echo "::warning::まだ準備中です。Settings → Secrets and variables → Actions に NA_RECEIVER_URL と NA_RECEIVER_SECRET を登録してください（README の「ステップ④」）。"
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          fi
+      - name: 取得してシートへ送る
+        if: steps.chk.outputs.ready == 'yes'
+        env:
+          NOTE_SESSION: ${{ secrets.NOTE_SESSION }}
+          NA_RECEIVER_URL: ${{ secrets.NA_RECEIVER_URL }}
+          NA_RECEIVER_SECRET: ${{ secrets.NA_RECEIVER_SECRET }}
+          NOTE_OWN: ${{ vars.NOTE_OWN }}        # 任意（お試しで受け取り先がまだ無いときだけ使う）
+          NOTE_BENCH: ${{ vars.NOTE_BENCH }}
+          NA_SOURCE: github
+          DRY_RUN: ${{ inputs.dry_run }}
+          NO_DASH: ${{ inputs.no_dashboard }}
+        run: |
+          ARGS=""
+          if [ "$DRY_RUN" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "$NO_DASH" = "true" ]; then ARGS="$ARGS --no-dashboard"; fi
+          python3 -m note_runner $ARGS

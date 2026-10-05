@@ -1,0 +1,9 @@
+# 取得したデータ・秘密はコミットしない
+*.json
+!tests/fixtures/*.json
+.env
+*.env
+out/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

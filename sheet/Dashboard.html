@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>note分析</title>
+<style>
+  :root { --g: #41C9B4; --gd: #12927F; --gl: #E7F8F5; --heart: #F0627A; --bench: #9AA5B8; --warn: #E8890C; --bad: #D93F3F;
+    --bg: #F4F6F5; --card: #fff; --line: #E7EBE9; --text: #1B2220; --sub: #6A7572; --r: 18px; --nav: 64px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic UI", "Meiryo", sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  /* 上のバー */
+  .appbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); background: rgba(255,255,255,.92); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line); }
+  .logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, #5ED6C3, #1FA892); display: grid; place-items: center; flex: 0 0 auto; }
+  .brand { flex: 1; min-width: 0; }
+  .brand .ttl { font-size: 16px; font-weight: 800; letter-spacing: .02em; line-height: 1.2; }
+  .brand .sub { font-size: 11px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .iconbtn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; cursor: pointer; color: var(--gd); }
+  .iconbtn:disabled { opacity: .5; }
+  .iconbtn.spin svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* 下のナビ（PCでは左） */
+  .bnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; background: rgba(255,255,255,.97); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  .bnav button { flex: 1; height: var(--nav); border: 0; background: none; font-family: inherit; color: #8B9592; font-size: 11px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; position: relative; }
+  .bnav button svg { width: 24px; height: 24px; }
+  .bnav button.on { color: var(--gd); }
+  .bnav button.on::before { content: ""; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--g); }
+  .bnav .badge { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--heart); color: #fff; font-size: 10px; line-height: 17px; }
+  main { max-width: 760px; margin: 0 auto; padding: 14px 14px calc(var(--nav) + 28px + env(safe-area-inset-bottom)); }
+  .ptitle { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 4px 2px 12px; }
+  .ptitle h1 { font-size: 22px; margin: 0; letter-spacing: .02em; }
+  .ptitle .meta { font-size: 12px; color: var(--sub); text-align: right; }
+  /* カード */
+  .card { background: var(--card); border-radius: var(--r); padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(16,40,34,.05), 0 4px 16px rgba(16,40,34,.04); }
+  .card > h2, .sech { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 16px; margin: 0 0 12px; }
+  .card > h2 .more, .sech .more { font-size: 12px; font-weight: 700; color: var(--gd); background: var(--gl); border: 0; border-radius: 999px; padding: 4px 10px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .card > h2 small { font-size: 12px; color: var(--sub); font-weight: 500; }
+  .hint { font-size: 12px; color: var(--sub); }
+  /* 数字のカード */
+  .kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .kpi { background: var(--card); border-radius: var(--r); padding: 14px 14px 12px; box-shadow: 0 1px 2px rgba(16,40,34,.05), 0 4px 16px rgba(16,40,34,.04); min-width: 0; position: relative; overflow: hidden; }
+  .kpi .l { font-size: 12px; font-weight: 700; color: var(--sub); display: flex; align-items: center; gap: 6px; }
+  .kpi .l .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g); flex: 0 0 auto; }
+  .kpi .v { font-size: 30px; font-weight: 800; line-height: 1.15; margin: 6px 0 4px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .v small { font-size: 14px; font-weight: 700; margin-left: 2px; color: var(--sub); }
+  .kpi .s { font-size: 11.5px; color: var(--sub); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-height: 20px; }
+  .kpi.hero { grid-column: 1 / -1; background: linear-gradient(135deg, #3CC4AE 0%, #1A9F8A 100%); color: #fff; }
+  .kpi.hero .l, .kpi.hero .s, .kpi.hero .v small { color: rgba(255,255,255,.88); }
+  .kpi.hero .l .dot { background: #fff; }
+  .kpi.hero .v { font-size: 40px; }
+  .kpi.alert .v { color: var(--warn); }
+  .kpi.small { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; }
+  .kpi.small .v { font-size: 18px; margin: 0; } .kpi.small .s { min-height: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 1px 8px; background: #EEF1F0; color: var(--sub); white-space: nowrap; }
+  .chip.up { background: #E3F6EF; color: #128A5C; } .chip.down { background: #FDEBEC; color: #C23B3B; }
+  .chip.ok { background: #E3F6EF; color: #128A5C; } .chip.ng { background: #FDEBEC; color: #C23B3B; } .chip.wait { background: #FFF2DE; color: #A35F00; }
+  .kpi.hero .chip { background: rgba(255,255,255,.22); color: #fff; }
+  .chip.new { background: #FFE9EE; color: #D23D5E; } .chip.g { background: var(--gl); color: var(--gd); }
+  /* グラフ */
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .chart .cap { font-size: 12.5px; min-height: 20px; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  .chart .cap b { font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--sub); margin-top: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .legend i.ln { height: 3px; border-radius: 2px; vertical-align: 3px; width: 14px; }
+  .empty { text-align: center; padding: 22px 12px; color: var(--sub); }
+  .empty .ic { width: 52px; height: 52px; border-radius: 16px; background: var(--gl); display: grid; place-items: center; margin: 0 auto 10px; font-size: 24px; }
+  .empty .t { font-weight: 800; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+  .empty .d { font-size: 12.5px; }
+  /* リスト */
+  .list { display: flex; flex-direction: column; }
+  .item { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-top: 1px solid var(--line); color: inherit; text-decoration: none; min-width: 0; }
+  .list > .item:first-child { border-top: 0; padding-top: 2px; }
+  a.item:active { background: #F6F9F8; }
+  .item .body { flex: 1; min-width: 0; }
+  .item .tt { font-weight: 700; font-size: 14.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+  .item .mt { font-size: 12px; color: var(--sub); display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; align-items: center; }
+  .item .chev { color: #B8C1BE; flex: 0 0 auto; }
+  .rank { width: 30px; height: 30px; border-radius: 10px; background: #EEF1F0; color: var(--sub); font-weight: 800; display: grid; place-items: center; flex: 0 0 auto; font-size: 14px; }
+  .rank.r1 { background: #FFF1CC; color: #A26A00; } .rank.r2 { background: #EEF0F4; color: #5B6577; } .rank.r3 { background: #FBE7DA; color: #9B5328; }
+  .av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 16px; flex: 0 0 auto; }
+  .av.sm { width: 34px; height: 34px; font-size: 14px; }
+  .big { font-size: 18px; font-weight: 800; text-align: right; flex: 0 0 auto; line-height: 1.2; }
+  .big small { display: block; font-size: 10.5px; font-weight: 700; color: var(--sub); }
+  .fans { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; margin: 0 -2px; scrollbar-width: none; }
+  .fans::-webkit-scrollbar { display: none; }
+  .fan { flex: 0 0 156px; width: 156px; min-width: 0; overflow: hidden; scroll-snap-align: start; border: 1px solid var(--line); border-radius: 16px; padding: 14px 12px 12px; text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; background: linear-gradient(180deg, #F3FBF9 0, #fff 56px); }
+  .fan .nm { font-weight: 800; font-size: 14px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+  .fan .id { font-size: 11px; color: var(--sub); width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fan .st { display: flex; gap: 6px; margin: 4px 0 2px; }
+  .fan .fa { font-size: 11px; color: var(--sub); width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fan .go { margin-top: 6px; font-size: 12px; font-weight: 800; color: var(--gd); }
+  /* 比較 */
+  .mrow { margin: 12px 0 4px; } .mrow:first-child { margin-top: 0; }
+  .mrow .ml { font-size: 13px; font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+  .mrow .ml span { font-weight: 500; color: var(--sub); font-size: 11.5px; }
+  .mbar { display: grid; grid-template-columns: 86px 1fr 56px; align-items: center; gap: 8px; font-size: 12px; margin: 5px 0; }
+  .mbar .who { color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mbar .tr { height: 12px; border-radius: 6px; background: #EEF1F0; overflow: hidden; }
+  .mbar .fl { display: block; height: 100%; border-radius: 6px; background: var(--g); min-width: 3px; }
+  .mbar .fl.b { background: var(--bench); }
+  .mbar .val { text-align: right; font-weight: 800; font-size: 13px; }
+  .people { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .person { background: var(--card); border-radius: var(--r); padding: 14px; box-shadow: 0 1px 2px rgba(16,40,34,.05), 0 4px 16px rgba(16,40,34,.04); min-width: 0; border-top: 4px solid var(--g); }
+  .person.b { border-top-color: var(--bench); }
+  .person .pid { font-size: 12px; font-weight: 800; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .person .pv { font-size: 26px; font-weight: 800; line-height: 1.2; margin-top: 4px; }
+  /* 記事タブ・ファンタブ */
+  .tools { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .search { position: relative; }
+  .search input { width: 100%; height: 44px; border-radius: 14px; border: 1px solid var(--line); background: #fff; padding: 0 14px 0 40px; font-size: 16px; font-family: inherit; }
+  .search input:focus { outline: 2px solid var(--g); border-color: transparent; }
+  .search svg { position: absolute; left: 13px; top: 12px; color: #9AA4A1; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .chips::-webkit-scrollbar { display: none; }
+  /* v1.5：ファンの段階・動き・次の一手 */
+  .stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .stg { border: 0; border-radius: 14px; padding: 10px 8px 9px; text-align: left; font-family: inherit; cursor: pointer; background: #F3F6F5; color: var(--text); min-width: 0; }
+  .stg .l { font-size: 12px; font-weight: 800; color: var(--sub); white-space: nowrap; } .stg .v { font-size: 24px; font-weight: 900; line-height: 1.2; } .stg .v small { font-size: 12px; margin-left: 1px; } .stg .d { font-size: 11.5px; font-weight: 800; color: var(--sub); }
+  .stg.core { background: linear-gradient(135deg, #FFE3EA, #FFF1F4); } .stg.core .l { color: #D23D5E; } .stg.regular { background: var(--gl); } .stg.regular .l { color: var(--gd); }
+  .stg .d.up { color: #128A5C; } .stg .d.down { color: #C23B3B; }
+  .stbar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; margin: 12px 0 4px; background: #EEF1F0; } .stbar i { display: block; height: 100%; }
+  .spark { flex: 0 0 auto; align-self: center; } .pacts { display: flex; gap: 6px; flex-wrap: nowrap; margin-top: 6px; } .pacts > * { flex: 0 0 auto; width: auto !important; } .pacts .mini { height: 30px; font-size: 12px; padding: 0 10px; }
+  .mini.met { background: var(--gl); color: var(--gd); border-color: transparent; }
+  .nexts { display: flex; flex-direction: column; gap: 8px; } .nx { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 14px; background: #F6F8F7; border: 0; text-align: left; font-family: inherit; color: inherit; cursor: pointer; width: 100%; }
+  .nx .n { flex: 0 0 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; font-weight: 900; font-size: 13px; background: var(--text); color: #fff; } .nx .b { flex: 1; min-width: 0; } .nx .t { font-weight: 800; font-size: 14.5px; } .nx .x { font-size: 12.5px; color: var(--sub); line-height: 1.55; margin-top: 2px; } .nx .go { color: var(--gd); font-weight: 800; font-size: 12.5px; white-space: nowrap; align-self: center; }
+  .nx.k-visit .n, .nx.k-back .n { background: var(--heart); } .nx.k-almost .n, .nx.k-hidden .n { background: var(--g); } .nx.k-reply .n { background: var(--warn); }
+  .eff { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .effb { background: #F6F8F7; border-radius: 14px; padding: 12px; } .effb .l { font-size: 12px; font-weight: 800; color: var(--sub); } .effb .v { font-size: 26px; font-weight: 900; } .effb .v small { font-size: 12px; } .effb .s { font-size: 12px; color: var(--sub); }
+  .effb.hi { background: var(--gl); } .effb.hi .v { color: var(--gd); }
+  .pstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; } .pstats div { background: #F6F8F7; border-radius: 12px; padding: 9px; } .pstats b { display: block; font-size: 19px; font-weight: 900; } .pstats span { font-size: 11.5px; color: var(--sub); font-weight: 700; }
+  @media (max-width: 420px) { .stages { grid-template-columns: repeat(2, 1fr); } .eff { grid-template-columns: 1fr; } }
+  .chips button { flex: 0 0 auto; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--sub); cursor: pointer; }
+  .chips button.on { background: var(--text); border-color: var(--text); color: #fff; }
+  .arow { padding: 13px 2px; border-top: 1px solid var(--line); }
+  .list > .arow:first-child { border-top: 0; padding-top: 2px; }
+  .arow a { color: inherit; text-decoration: none; }
+  .arow .tt { font-weight: 700; font-size: 14.5px; line-height: 1.45; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .arow .dt { font-size: 11.5px; color: var(--sub); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+  .stats div { background: #F6F8F7; border-radius: 10px; padding: 6px 8px; min-width: 0; }
+  .stats div.on { background: var(--gl); }
+  .stats b { display: block; font-size: 15px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stats span { font-size: 10.5px; color: var(--sub); font-weight: 700; }
+  .count { font-size: 12px; color: var(--sub); margin: 0 2px 8px; }
+  .morebtn { width: 100%; height: 44px; margin-top: 8px; border-radius: 12px; border: 1px dashed #C9D2CF; background: none; font-family: inherit; font-weight: 700; color: var(--gd); cursor: pointer; }
+  /* その他 */
+  .seg { display: flex; background: #E9EDEB; border-radius: 12px; padding: 3px; margin-bottom: 14px; }
+  .seg button { flex: 1; height: 36px; border: 0; background: none; border-radius: 10px; font-family: inherit; font-weight: 700; font-size: 13.5px; color: var(--sub); cursor: pointer; }
+  .seg button.on { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 7px 5px; text-align: left; vertical-align: top; }
+  th { color: var(--sub); font-weight: 700; white-space: nowrap; font-size: 12px; }
+  td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .notes { margin: 0; padding-left: 18px; } .notes li { margin-bottom: 6px; }
+  .up { color: #128A5C; } .down { color: #C23B3B; }
+  .bar { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 5px 0; }
+  .bar .lb { width: 76px; flex: 0 0 auto; }
+  .bar .tr { flex: 1; background: #EEF1F0; border-radius: 6px; height: 14px; overflow: hidden; }
+  .bar .fl { background: #A9E3D9; height: 100%; border-radius: 6px; }
+  .bar .fl.best { background: var(--g); }
+  .bar .vl { width: 78px; text-align: right; flex: 0 0 auto; color: var(--sub); font-size: 12px; }
+  label { display: block; font-size: 13px; font-weight: 700; margin: 12px 0 5px; }
+  input, select, textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; font-size: 16px; font-family: inherit; background: #fff; color: var(--text); }
+  textarea { min-height: 140px; }
+  button.btn { width: 100%; margin-top: 14px; height: 48px; border: 0; border-radius: 14px; font-size: 15px; font-weight: 800; font-family: inherit; background: var(--gd); color: #fff; cursor: pointer; }
+  button.btn.sec { background: var(--gl); color: var(--gd); }
+  button.btn:disabled { opacity: .5; }
+  .status { margin-top: 8px; font-size: 13px; white-space: pre-wrap; }
+  .status.err { color: var(--bad); } .status.ok { color: #128A5C; }
+  .danger { background: #FDECEA; border: 2px solid #D93025; color: #8B1A10; border-radius: 14px; padding: 12px; font-size: 13px; font-weight: bold; white-space: pre-wrap; margin-bottom: 12px; }
+  .okbox { background: #E9F7F1; border: 1px solid #A6DEC6; border-radius: 14px; padding: 10px 12px; font-size: 12px; white-space: pre-wrap; margin-bottom: 12px; color: #1F4D3E; }
+  .warn { background: #FFF6E5; border: 1px solid #F2C46D; border-radius: 14px; padding: 12px; font-size: 13px; white-space: pre-wrap; margin-bottom: 12px; }
+  .hidden { display: none !important; }
+  a { color: var(--gd); }
+  .pre { white-space: pre-wrap; font-size: 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .foot { text-align: center; font-size: 11.5px; color: var(--sub); margin: 18px 0 0; }
+  .toast { position: fixed; left: 50%; bottom: calc(var(--nav) + 16px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #1B2220; color: #fff; padding: 10px 16px; border-radius: 14px; font-size: 13px; z-index: 40; max-width: calc(100% - 32px); box-shadow: 0 6px 24px rgba(0,0,0,.2); white-space: pre-wrap; }
+  .skel { height: 96px; border-radius: var(--r); background: linear-gradient(90deg, #ECEFEE 25%, #F6F8F7 50%, #ECEFEE 75%); background-size: 200% 100%; animation: sh 1.2s infinite; margin-bottom: 10px; }
+  @keyframes sh { to { background-position: -200% 0; } }
+  @media (min-width: 640px) {
+    .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .kpi.hero { grid-column: auto; }
+    .kpi.small { grid-column: auto; display: block; padding: 14px 14px 12px; } .kpi.small .v { font-size: 20px; margin: 8px 0 4px; }
+    .kpi.hero .v { font-size: 34px; }
+  }
+  @media (min-width: 960px) {
+    body { font-size: 15px; }
+    .appbar { margin-left: 232px; padding: 14px 28px; }
+    .bnav { top: 0; bottom: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start; gap: 4px; border-top: 0; border-right: 1px solid var(--line); padding: 82px 14px 14px; background: #fff; }
+    .bnav button { flex: 0 0 auto; height: 46px; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 0 14px; font-size: 14px; border-radius: 12px; }
+    .bnav button.on { background: var(--gl); }
+    .bnav button.on::before { display: none; }
+    .bnav .badge { position: static; margin-left: auto; }
+    .navlogo { position: absolute; top: 18px; left: 22px; display: flex !important; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; }
+    .appbar .logo, .appbar .ttl { display: none; }
+    .brand .sub { font-size: 12.5px; }
+    main { margin-left: 232px; max-width: none; padding: 22px 28px 40px; }
+    .wrap { max-width: 1080px; margin: 0 auto; }
+    .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+    .kpi .v { font-size: 28px; } .kpi.hero .v { font-size: 32px; }
+    .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+    .grid2 > .card { margin-bottom: 0; }
+    .grid2 { margin-bottom: 14px; }
+    .span2 { grid-column: 1 / -1; }
+    .fans { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); overflow: visible; }
+    .fan { width: auto; }
+    .alist { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; }
+    .alist > .arow:nth-child(2) { border-top: 0; padding-top: 2px; }
+    .people { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .toast { bottom: 24px; left: calc(50% + 116px); }
+  }
+  .navlogo { display: none; }
+  /* 運用（AI下書き・予定帳） */
+  .ritem { border-top: 1px solid var(--line); padding-bottom: 6px; } .list > .ritem:first-child { border-top: 0; } .ritem > .item { border-top: 0; }
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px 46px; }
+  .acts .mini { font-size: 12px; padding: 0 10px; }
+  .idea .acts { margin-left: 0; margin-top: 8px; }
+  a.mini { display: inline-flex; align-items: center; text-decoration: none; }
+  .mini { height: 32px; padding: 0 11px; border-radius: 999px; border: 1px solid #CFE9E3; background: #fff; color: var(--gd); font-family: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+  .mini.g { background: var(--gd); border-color: var(--gd); color: #fff; } .mini.has { background: var(--gl); }
+  .mini:disabled { opacity: .5; }
+  .dtoggle { margin: 0 0 6px 46px; }
+  .drafts { margin: 4px 0 6px 46px; background: #F6FBFA; border: 1px solid #DDF1EC; border-radius: 14px; padding: 10px; }
+  .sheet .drafts { margin-left: 0; margin-top: 12px; }
+  .dmeta { font-size: 11px; color: var(--sub); margin-bottom: 6px; font-weight: 700; }
+  .draft { display: flex; gap: 8px; align-items: flex-start; background: #fff; border-radius: 10px; padding: 9px 10px; margin-bottom: 6px; border: 1px solid var(--line); }
+  .draft .dt { flex: 1; font-size: 13.5px; white-space: pre-wrap; word-break: break-word; }
+  .openlink { display: inline-block; font-size: 12.5px; font-weight: 800; margin-top: 2px; text-decoration: none; }
+  .aicard .todo { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .aicard .btns { display: grid; grid-template-columns: 1fr; gap: 0; }
+  .aicard .btns .btn.sec { margin-top: 8px; height: 40px; font-size: 13.5px; }
+  .setupai { display: flex; gap: 12px; align-items: flex-start; font-size: 13.5px; }
+  .setupai .ic { width: 44px; height: 44px; border-radius: 14px; background: #FFF4DB; display: grid; place-items: center; font-size: 22px; flex: 0 0 auto; }
+  .setupai ol { margin: 6px 0 8px; padding-left: 18px; } .setupai li { margin-bottom: 3px; }
+  .privacy { font-size: 12px; color: #4A5A55; background: #F3F6F5; border-radius: 12px; padding: 9px 11px; margin-top: 10px; }
+  .who { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+  .pats > div { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .pats .pl { font-size: 11.5px; color: var(--sub); font-weight: 800; width: 76px; }
+  .ideas { margin-top: 8px; }
+  .idea { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); } .idea:first-of-type { border-top: 0; }
+  .idea .in { width: 26px; height: 26px; border-radius: 9px; background: var(--gl); color: var(--gd); font-weight: 800; display: grid; place-items: center; flex: 0 0 auto; font-size: 13px; }
+  .idea .body { flex: 1; min-width: 0; } .idea .tt { font-weight: 800; font-size: 15px; line-height: 1.45; word-break: break-all; }
+  .idea .why { font-size: 12.5px; color: var(--sub); margin-top: 3px; } .idea ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
+  .slot { display: flex; gap: 12px; align-items: center; } .slot .ic { font-size: 22px; width: 42px; height: 42px; border-radius: 14px; background: #FFF4DB; display: grid; place-items: center; flex: 0 0 auto; } .slot .body { flex: 1; min-width: 0; font-size: 14px; }
+  .calhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .calhead .iconbtn { width: 36px; height: 36px; font-size: 20px; font-weight: 700; }
+  .calttl { font-weight: 800; font-size: 16px; min-width: 0; flex: 1; text-align: center; white-space: nowrap; }
+  .seg.sm { margin: 0; padding: 2px; } .seg.sm button { height: 30px; padding: 0 12px; font-size: 12.5px; flex: 0 0 auto; }
+  .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  .wh { text-align: center; font-size: 11.5px; font-weight: 800; color: var(--sub); padding: 2px 0 4px; border-radius: 8px; }
+  .wh.sun { color: #D9534F; } .wh.sat { color: #3C7DD9; } .wh.best { background: var(--gl); color: var(--gd); }
+  .cd { aspect-ratio: 1 / 1.08; border: 0; background: #F7F9F8; border-radius: 10px; padding: 4px 3px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-family: inherit; cursor: pointer; min-width: 0; overflow: hidden; color: var(--text); }
+  .cd.out { opacity: .38; } .cd.best { background: var(--gl); } .cd.today .dn { background: var(--text); color: #fff; } .cd.sel { outline: 2px solid var(--g); outline-offset: -2px; }
+  .cd .dn { font-size: 12.5px; font-weight: 800; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; }
+  .cd .dots { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+  .cd .dots i, .pdot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  i.pub, .pdot.pub { background: #2FB9A2; } i.st-plan, .pdot.st-plan { background: #F2A33A; } i.st-draft, .pdot.st-draft { background: #B7C0BD; } i.st-done, .pdot.st-done { background: #fff; box-shadow: inset 0 0 0 2px #2FB9A2; }
+  .legend i.ring { background: #fff; box-shadow: inset 0 0 0 2px #2FB9A2; border-radius: 50%; }
+  .pdot { width: 10px; height: 10px; flex: 0 0 auto; }
+  .cd .lbls { display: none; width: 100%; }
+  .cd .lb { display: block; font-size: 10.5px; line-height: 1.35; border-radius: 5px; padding: 1px 4px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+  .lb.pub { background: #D6F3EE; color: #0F6F60; } .lb.st-plan { background: #FDEBD0; color: #8A5200; } .lb.st-draft { background: #ECEFEE; color: #59625F; } .lb.st-done { background: #fff; color: #0F6F60; box-shadow: inset 0 0 0 1px #9FE0D4; } .lb.more { color: var(--sub); }
+  .week { display: flex; flex-direction: column; }
+  .wrow { display: flex; gap: 10px; align-items: flex-start; padding: 8px 4px; border-top: 1px solid var(--line); border-radius: 10px; } .wrow:first-child { border-top: 0; }
+  .wrow.best { background: #F1FBF9; } .wrow .wd { width: 42px; flex: 0 0 auto; border: 0; background: none; font-family: inherit; display: flex; flex-direction: column; align-items: center; cursor: pointer; color: var(--text); }
+  .wrow .wd b { font-size: 18px; line-height: 1.2; } .wrow .wd span { font-size: 11px; color: var(--sub); } .wrow.today .wd b { color: var(--gd); }
+  .wrow .wi { flex: 1; min-width: 0; } .wrow .wi .item { padding: 6px 0; border-top: 0; } .wrow .add { width: 32px; padding: 0; flex: 0 0 auto; }
+  button.item { width: 100%; border: 0; background: none; font-family: inherit; text-align: left; cursor: pointer; color: inherit; font-size: inherit; }
+  .item .edit { font-size: 12px; font-weight: 800; color: var(--gd); flex: 0 0 auto; }
+  .sheet { position: fixed; inset: 0; background: rgba(20,30,27,.42); z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
+  .sheetin { background: #fff; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; border-radius: 22px 22px 0 0; padding: 14px 16px calc(20px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.15); }
+  .sheethead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; } .sheethead b { font-size: 17px; }
+  .sheet .seg { margin-bottom: 0; }
+  button.btn.danger2 { background: #fff; color: var(--bad); border: 1px solid #F1C4C4; margin-top: 8px; height: 42px; }
+  body:not(.tab-more) #cookie.okbox { display: none; }
+  @media (min-width: 640px) { .cd .dots { display: none; } .cd .lbls { display: block; } .cd { aspect-ratio: auto; min-height: 84px; align-items: stretch; } .cd .dn { align-self: flex-start; } }
+  @media (min-width: 960px) { .sheet { align-items: center; } .sheetin { border-radius: 22px; } .cd { min-height: 96px; } }
+</style>
+</head>
+<body class="tab-home">
+<header class="appbar">
+  <div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V11M10 18V6M16 18v-4M21 18H3"/></svg></div>
+  <div class="brand"><div class="ttl">note分析</div><div class="sub" id="sub">読み込み中…</div></div>
+  <button class="iconbtn" id="btnFetchTop" aria-label="今すぐ取得する" title="今すぐ取得する"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+</header>
+<nav class="bnav" id="tabs" aria-label="画面の切り替え">
+  <div class="navlogo"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V11M10 18V6M16 18v-4M21 18H3"/></svg></span>note分析</div>
+  <button data-t="home" class="on" aria-label="ホーム"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></button>
+  <button data-t="art" aria-label="記事"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>記事</span></button>
+  <button data-t="plan" aria-label="予定帳"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>予定帳</span></button>
+  <button data-t="fan" aria-label="ファン"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>ファン</span><span class="badge hidden" id="fanBadge"></span></button>
+  <button data-t="cmp" aria-label="比較"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10M12 20V4M18 20v-7"/></svg><span>比較</span></button>
+  <button data-t="more" aria-label="その他"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>その他</span></button>
+</nav>
+<main><div class="wrap">
+  <div id="share" class="danger hidden"></div>
+  <div id="cookie" class="hidden"></div>
+  <div id="setup" class="warn hidden"></div>
+
+  <section id="t-home">
+    <div class="ptitle"><h1 id="who">ホーム</h1><div class="meta" id="homeMeta"></div></div>
+    <div id="skel"><div class="kpis"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div><div class="skel" style="height:220px"></div></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card hidden" id="nextCard"><h2>今週の次の一手<small>記録したデータから自動で（AIは使いません）</small></h2><div class="nexts" id="nextList"></div></div>
+    <div class="card"><h2>毎日のPVとスキ<small id="trendSub"></small></h2><div class="chart" id="trend"></div></div>
+    <div class="grid2">
+      <div class="card"><h2>いま伸びている記事<button class="more" data-go="art">すべて →</button></h2><div class="list" id="top5"></div></div>
+      <div class="card aicard" id="aiCard"></div>
+    </div>
+    <div class="card"><h2>返信を待っているコメント<small id="replySub"></small></h2><div class="list" id="replyList"></div></div>
+    <div class="card"><h2>今週の新しいファン<button class="more" data-go="fan">ファン一覧 →</button></h2><div class="fans" id="weekFans"></div></div>
+    <div class="grid2">
+      <div class="card" id="ideaCard"></div>
+      <div class="card"><h2>ベンチマークとくらべる<button class="more" data-go="cmp">くわしく →</button></h2><div id="cmpMini"></div></div>
+    </div>
+  </section>
+
+  <section id="t-art" class="hidden">
+    <div class="ptitle"><h1>記事</h1><div class="meta" id="artMeta"></div></div>
+    <div class="tools">
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="artQ" type="search" placeholder="タイトルで探す" aria-label="記事をタイトルで探す"></div>
+      <div class="chips" id="artSort" role="group" aria-label="記事の並べかえ"></div>
+    </div>
+    <div class="card"><div class="count" id="artCount"></div><div class="list alist" id="artList"></div><button class="morebtn hidden" id="artMore">もっと見る</button></div>
+    <div class="grid2">
+      <div class="card"><h2>読まれたのにスキが少ない<small id="lowSub"></small></h2><div class="hint" style="margin-bottom:6px">PVは多いのに、スキ率が下から4分の1に入る記事。最後のひと言やまとめで変わるかも</div><div class="list" id="lowList"></div></div>
+      <div class="card"><h2>隠れた名作<small id="hidSub"></small></h2><div class="hint" style="margin-bottom:6px">PVは少なめなのに、スキ率が上から4分の1に入る記事。もう一度紹介する候補</div><div class="list" id="hidList"></div></div>
+    </div>
+    <div class="card"><h2>フォロワーを増やした記事<small>公開の前と、2〜4日後のフォロワー数の差</small></h2><div class="list" id="folList"></div></div>
+  </section>
+
+  <section id="t-plan" class="hidden">
+    <div class="ptitle"><h1>予定帳</h1><div class="meta" id="planMeta"></div></div>
+    <div class="card" id="planSlot"></div>
+    <div class="card">
+      <div class="calhead"><button class="iconbtn" id="calPrev" type="button" aria-label="前へ">‹</button><div class="calttl" id="calTitle"></div><button class="iconbtn" id="calNext" type="button" aria-label="次へ">›</button>
+        <button class="mini" id="calToday" type="button">今日</button><div class="seg sm" id="calMode"><button data-m="month" class="on" type="button">月</button><button data-m="week" type="button">週</button></div></div>
+      <div id="cal"></div>
+      <div class="legend"><span><i style="background:#2FB9A2"></i>公開した記事</span><span><i style="background:#F2A33A"></i>予定</span><span><i style="background:#B7C0BD"></i>下書き</span><span><i class="ring"></i>公開済み（予定帳）</span><span><i style="background:#E7F8F5;border:1px solid #9FE0D4"></i>⭐ おすすめの曜日</span></div>
+    </div>
+    <div class="grid2">
+      <div class="card" id="dayCard"><h2 id="dayTitle"></h2><div class="list" id="dayList"></div><button class="btn sec" id="btnAddDay" type="button">＋ この日に予定を入れる</button></div>
+      <div class="card"><h2>これからの予定<button class="more" id="btnAddPlan" type="button">＋ 予定を入れる</button></h2><div class="list" id="upcoming"></div></div>
+    </div>
+    <p class="hint">予定は「投稿予定」シートに保存します。投稿は自動ではしません（note で自分で投稿します）。</p>
+  </section>
+
+  <section id="t-fan" class="hidden">
+    <div class="ptitle"><h1>ファン</h1><div class="meta" id="fanMeta"></div></div>
+    <div class="kpis" id="fanKpis"></div>
+    <div class="card hidden" id="stageCard"><h2>ファンの段階<small id="stageSub">4週間前とくらべて</small></h2><div class="stages" id="stages"></div><div class="stbar" id="stbar"></div><div class="hint" id="stageHint"></div></div>
+    <div class="card hidden" id="moveCard"><h2>ファンの動き<small id="moveSub"></small></h2>
+      <div class="chips" id="moveTabs" role="group" aria-label="ファンの動きの種類" style="margin-bottom:6px"></div>
+      <div class="hint" id="moveHint" style="margin-bottom:4px"></div><div class="list" id="moveList"></div><button class="morebtn hidden" id="moveMore">もっと見る</button></div>
+    <div class="card hidden" id="effCard"><h2>効果<small>会いに行った・返信した あとに、また来てくれたか</small></h2><div class="eff" id="effBoxes"></div><div class="list" id="effList" style="margin-top:8px"></div></div>
+    <div class="card"><h2>よくスキ・コメントしてくれる人<small>自分のスキ・コメントは数えません</small></h2>
+      <div class="search" style="margin-bottom:6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="fanQ" type="search" placeholder="名前・IDで探す" aria-label="ファンを名前で探す"></div>
+      <div class="chips" id="fanSort" role="group" aria-label="ファンの並べかえ" style="margin-bottom:6px"></div>
+      <div class="chips" id="fanPeriod" role="group" aria-label="ファンの期間" style="margin-bottom:8px"></div>
+      <div class="count" id="fanCount"></div><div class="list" id="fanRank"></div><button class="morebtn hidden" id="fanMore">もっと見る</button></div>
+    <div class="grid2">
+      <div class="card"><h2>新しいスキ<small id="fanSince"></small></h2><div class="list" id="fanNew"></div></div>
+      <div class="card"><h2>新しい人を連れてきた記事</h2><div class="hint" style="margin-bottom:6px">その記事が「はじめてのスキ」だった人の数</div><div class="list" id="fanArt"></div></div>
+    </div>
+    <p class="hint">お礼や、相手の記事を読みに行くきっかけに使うための一覧です。このシートの中だけに保存し、AIには渡しません。コメントの本文は保存しません。公開・共有はしないでください。</p>
+  </section>
+
+  <section id="t-cmp" class="hidden">
+    <div class="ptitle"><h1>比較</h1><div class="meta" id="cmpMeta"></div></div>
+    <div class="people" id="cmpPeople"></div>
+    <div class="grid2">
+      <div class="card"><h2>数字をならべる<small id="cmpDays"></small></h2><div id="cmpBars"></div></div>
+      <div class="card"><h2>週ごとの投稿数<small>直近13週</small></h2><div class="chart" id="cmpWeekly"></div></div>
+      <div class="card"><h2>フォロワーの増え方<small>直近90日・最初の日＝0</small></h2><div class="chart" id="cmpFollow"></div></div>
+      <div class="card"><h2>週ごとのスキ中央値<small>その週の記事・今の数</small></h2><div class="chart" id="cmpMedian"></div></div>
+    </div>
+    <div class="card"><h2>くわしい表</h2><div class="hint" style="margin-bottom:6px">テーマや読者が違うので、数字の大小より「やり方の違い」を見ましょう。</div><div class="scroll" id="cmp"></div></div>
+  </section>
+
+  <section id="t-more" class="hidden">
+    <div class="ptitle"><h1>その他</h1></div>
+    <div class="card"><h2>データの取得</h2><div class="hint" id="lastFetch"></div>
+      <button class="btn sec" id="btnFetch">今すぐ取得する（数十秒〜数分）</button><div class="status" id="fetchStatus"></div></div>
+    <div class="seg" id="moreSeg"><button data-s="ana" class="on">分析</button><button data-s="rec">記録</button><button data-s="ai">AI週報</button></div>
+    <div id="s-ana">
+      <div class="card"><h2>気づき（自動メモ）</h2><ul class="notes" id="notes"></ul></div>
+      <div class="grid2">
+        <div class="card"><h2>フォロワー推移<small>90日</small></h2><div class="chart" id="chartFollowers"></div></div>
+        <div class="card"><h2>スキ合計の推移<small>取得した記事の合計</small></h2><div class="chart" id="chartLikes"></div></div>
+        <div class="card"><h2>曜日別のスキ中央値</h2><div id="wd"></div></div>
+        <div class="card"><h2>時間帯別のスキ中央値</h2><div id="hr"></div></div>
+      </div>
+      <div class="card"><h2>ベスト5<small>公開7日以上</small></h2><div class="scroll" id="best"></div></div>
+      <div class="card"><h2>ワースト5<small>公開7日以上</small></h2><div class="scroll" id="worst"></div></div>
+      <div class="card"><h2>初速（直近の記事）</h2><div class="hint" id="velSum"></div><div class="scroll" id="vel"></div></div>
+      <div class="card"><h2>タイトルの型</h2><div class="hint">「その型の記事」と「それ以外」のスキ中央値の差。本数が少ないものは参考程度に。</div><div class="scroll" id="tp"></div></div>
+      <div class="card"><h2>じわ伸び<small>直近7日で増えたスキ</small></h2><div class="hint">公開7日以上の記事で、この1週間にスキが増えたもの。古くても読まれ続ける「資産記事」の候補です。</div><div class="scroll" id="growth"></div></div>
+      <div class="card"><h2>初速と、その後</h2><div class="hint">24時間のスキの段階ごとに、7日時点・最新のスキの中央値。</div><div class="scroll" id="vb"></div></div>
+      <div class="card"><h2>週ごとのまとめ</h2><div class="scroll" id="weekly"></div></div>
+      <div class="card"><h2>月ごとのまとめ</h2><div class="scroll" id="monthly"></div></div>
+      <div class="card"><h2>PV・スキ率・4象限</h2><div class="scroll" id="pvTable"></div></div>
+      <div class="card"><h2>記事の「消費期限」</h2><div class="hint">全期間PVを何回か記録すると、公開後の日数ごとの1日あたりPVが出ます。</div><div class="scroll" id="decay"></div></div>
+    </div>
+    <div id="s-rec" class="hidden">
+      <div class="card"><h2>PVを1件ずつ記録</h2>
+        <div class="hint">PV（ページビュー）は note のダッシュボードでしか見られないので、見た数字をここに入れます。<span id="pvAutoNote"></span></div>
+        <label for="pvKey">記事</label><select id="pvKey"></select>
+        <div class="row2">
+          <div><label for="pvPeriod">期間</label><select id="pvPeriod"><option>全期間</option><option>日次</option><option>過去7日</option><option>過去28日</option><option>その他</option></select></div>
+          <div><label for="pvDate">集計日</label><input id="pvDate" type="date"></div>
+        </div>
+        <div class="row2">
+          <div><label for="pvNum">ページビュー</label><input id="pvNum" type="number" inputmode="numeric" min="0"></div>
+          <div><label for="pvImp">インプレッション（任意）</label><input id="pvImp" type="number" inputmode="numeric" min="0"></div>
+        </div>
+        <button class="btn" id="btnPv">記録する</button>
+        <div class="status" id="pvStatus"></div>
+      </div>
+      <div class="card"><h2>ダッシュボードの一覧を貼り付け</h2>
+        <div class="hint">note のダッシュボード（アクセス状況）で記事一覧を選んでコピーし、ここに貼ります。読み取った結果を確認してから保存します。</div>
+        <label for="pasteText">貼り付け</label><textarea id="pasteText" placeholder="ここに貼り付け"></textarea>
+        <div class="row2">
+          <div><label for="pastePeriod">期間</label><select id="pastePeriod"><option>全期間</option><option>過去7日</option><option>過去28日</option><option>その他</option></select></div>
+          <div><label for="pasteDate">集計日</label><input id="pasteDate" type="date"></div>
+        </div>
+        <button class="btn sec" id="btnPreview">読み取って確認</button>
+        <div class="scroll" id="pastePreview"></div>
+        <button class="btn hidden" id="btnSavePaste">この内容で保存</button>
+        <div class="status" id="pasteStatus"></div>
+      </div>
+      <div class="card"><h2>フォロワー数を記録<small>RSSで使うとき</small></h2>
+        <label for="fwNum">今のフォロワー数</label><input id="fwNum" type="number" inputmode="numeric" min="0">
+        <button class="btn sec" id="btnFw">記録する</button>
+        <div class="status" id="fwStatus"></div>
+      </div>
+    </div>
+    <div id="s-ai" class="hidden">
+      <div class="card"><h2>AI週報<span class="aiName"></span></h2>
+        <div class="warn">AIに渡すのは、公開されている記事のタイトル・スキ数などの集計です（PVは設定で「はい」にしたときだけ）。無料枠の Gemini API では、入力内容が Google のサービス改善に使われることがあります（ChatGPT・Claude の API は、各社の規約により通常は学習に使われません）。</div>
+        <div class="hint aiUsage" style="margin-top:8px"></div>
+        <div id="aiBox" class="pre" style="margin-top:10px"></div>
+        <button class="btn" id="btnAi">AI週報を作る</button>
+        <div class="status" id="aiStatus"></div>
+      </div>
+    </div>
+  </section>
+  <p class="foot">note分析シート｜公開データだけを読みます（自動スキ・自動コメント・自動フォローはしません）</p>
+</div></main>
+<div class="toast hidden" id="toast" role="status"></div>
+<div class="sheet hidden" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheetin"><div class="sheethead"><b id="sheetTitle"></b><button class="iconbtn" id="sheetClose" type="button" aria-label="閉じる">✕</button></div><div id="sheetBody"></div></div></div>
+<script>
+  /* note分析 スマホ画面（v1.4.0）。データは google.script.run で自分のスプレッドシートから読むだけ（外部には送りません）。
+     画面に出す文字はすべて textContent / setAttribute で入れます（innerHTML にデータを入れない）。リンクは https://note.com/ だけ。 */
+  var D = null, SVGNS = 'http://www.w3.org/2000/svg';
+  var ART = { sort: 'date', asc: false, q: '', limit: 60 }, FAN = { q: '', limit: 50, sort: 'total', period: 'all' };
+  function $(id) { return document.getElementById(id); }
+  function safeUrl(u) { u = String(u || ''); return /^https:\/\/note\.com\/[A-Za-z0-9_\-\/.%?=&#]*$/.test(u) ? u : ''; }
+  function add(p, k) {
+    if (k === null || k === undefined || k === false) return;
+    if (Array.isArray(k)) { k.forEach(function (x) { add(p, x); }); return; }
+    p.appendChild(typeof k === 'object' ? k : document.createTextNode(String(k)));
+  }
+  // el('div', {class: 'x', text: '…', href: 'https://note.com/…'}, [子])。href は note.com だけ（それ以外はリンクにしない）
+  function el(tag, a, kids) {
+    if (tag === 'a' && !safeUrl(a && a.href)) tag = 'div';   // note.com 以外の URL はリンクにしない（ただの箱にする）
+    var e = document.createElement(tag);
+    for (var k in (a || {})) {
+      var v = a[k]; if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') e.className = v; else if (k === 'text') e.textContent = String(v);
+      else if (k === 'href') { var u = safeUrl(v); if (u) { e.setAttribute('href', u); e.setAttribute('target', '_blank'); e.setAttribute('rel', 'noopener noreferrer'); } }
+      else if (k === 'style') { for (var s in v) e.style[s] = v[s]; }
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, String(v));
+    }
+    add(e, kids); return e;
+  }
+  function sv(tag, a, kids) { var e = document.createElementNS(SVGNS, tag); for (var k in (a || {})) if (a[k] !== null && a[k] !== undefined) { if (k === 'text') e.textContent = String(a[k]); else e.setAttribute(k, String(a[k])); } add(e, kids); return e; }
+  function put(id, kids) { var n = typeof id === 'string' ? $(id) : id; while (n.firstChild) n.removeChild(n.firstChild); add(n, kids); return n; }
+  function link(text, url, cls) { return safeUrl(url) ? el('a', { href: url, class: cls || null, text: text }) : el('span', { class: cls || null, text: text }); }
+  function isNum(v) { return typeof v === 'number' && isFinite(v); }
+  function fmt(n) { return isNum(n) ? n.toLocaleString('ja-JP') : (n === null || n === undefined || n === '' ? '—' : String(n)); }
+  function signed(n) { return isNum(n) ? (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n).toLocaleString('ja-JP') : '—'; }
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  function md(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? (+m[2]) + '/' + (+m[3]) : String(d || ''); }
+  function mdw(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); if (!m) return String(d || ''); var w = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getUTCDay(); return (+m[2]) + '/' + (+m[3]) + '（' + WD[w] + '）'; }
+  // 日時は日本語で「10/5（月）11:35」。サーバーからの「2026-10-05 11:35」のほか、古いシートに残った「Mon Oct 05 2026 …」のような文字も日本時間に直す
+  function mdt(s) {
+    s = String(s || ''); var m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}:\d{2}))?/.exec(s);
+    if (!m && /^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2} \d{4}/.test(s)) { var t = Date.parse(s.replace(/ \(.*\)$/, '')); if (isFinite(t)) m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/.exec(new Date(t + 9 * 3600e3).toISOString()); }
+    if (!m) return s;
+    return mdw(m[1] + '-' + m[2] + '-' + m[3]) + (m[4] ? m[4] : '');
+  }
+  function chip(text, cls) { return el('span', { class: 'chip' + (cls ? ' ' + cls : ''), text: text }); }
+  function delta(n, unit) { if (!isNum(n)) return null; return chip((n > 0 ? '▲ ' : n < 0 ? '▼ ' : '') + signed(n) + (unit || ''), n > 0 ? 'up' : n < 0 ? 'down' : ''); }
+  var PALETTE = ['#41C9B4', '#F08A5D', '#6C8EF2', '#E7618C', '#9B7BE0', '#3BB0D6', '#E3A72F', '#5FB760'];
+  function avatar(name, id, small) {
+    var s = String(id || name || '?'), h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    var ch = Array.from(String(name || id || '？').replace(/^[\s　@＠]+/, ''))[0] || '？';
+    return el('span', { class: 'av' + (small ? ' sm' : ''), 'aria-hidden': 'true', style: { background: PALETTE[h % PALETTE.length] }, text: ch.toUpperCase() });
+  }
+  function empty(icon, title, desc) { return el('div', { class: 'empty' }, [el('div', { class: 'ic', text: icon }), el('div', { class: 't', text: title }), desc ? el('div', { class: 'd', text: desc }) : null]); }
+  function chev() { return sv('svg', { class: 'chev', width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, sv('path', { d: 'M9 6l6 6-6 6' })); }
+  function status(id, msg, kind) { var s = $(id); s.textContent = msg || ''; s.className = 'status' + (kind ? ' ' + kind : ''); }
+  var toastTimer = null;
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 5000); }
+  function call(name, args, ok, statusId) {
+    var r = google.script.run.withSuccessHandler(function (x) { ok(x); }).withFailureHandler(function (e) { var m = (e && e.message) || String(e); if (statusId) status(statusId, m, 'err'); else toast(m); });
+    r[name].apply(r, args || []);
+  }
+
+  /* ---------- 画面の切り替え ---------- */
+  var TABS = ['home', 'art', 'plan', 'fan', 'cmp', 'more'];
+  function show(t) {
+    document.querySelectorAll('#tabs button').forEach(function (x) { var on = x.getAttribute('data-t') === t; x.classList.toggle('on', on); if (on) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
+    TABS.forEach(function (k) { $('t-' + k).classList.toggle('hidden', k !== t); }); document.body.className = 'tab-' + t;
+    window.scrollTo(0, 0); if (D) drawCharts();
+  }
+  document.querySelectorAll('#tabs button').forEach(function (b) { b.onclick = function () { show(b.getAttribute('data-t')); }; });
+  document.querySelectorAll('[data-go]').forEach(function (b) { b.onclick = function () { show(b.getAttribute('data-go')); }; });
+  document.querySelectorAll('#moreSeg button').forEach(function (b) {
+    b.onclick = function () { var s = b.getAttribute('data-s'); document.querySelectorAll('#moreSeg button').forEach(function (x) { x.classList.toggle('on', x === b); }); ['ana', 'rec', 'ai'].forEach(function (k) { $('s-' + k).classList.toggle('hidden', k !== s); }); if (D) drawCharts(); };
+  });
+  var today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10), yday = new Date(Date.now() + 9 * 3600e3 - 864e5).toISOString().slice(0, 10);
+  $('pvDate').value = today; $('pasteDate').value = today;
+  $('pvPeriod').onchange = function () { if (this.value === '日次' && $('pvDate').value === today) $('pvDate').value = yday; };
+
+  /* ---------- グラフ（自前の SVG。外部のライブラリは使わない） ---------- */
+  function niceMax(v) { if (!(v > 0)) return 1; var p = Math.pow(10, Math.floor(Math.log(v) / Math.LN10)); var m = [1, 2, 2.5, 5, 10]; for (var i = 0; i < m.length; i++) if (m[i] * p >= v) return m[i] * p; return 10 * p; }
+  function short(n) { return Math.abs(n) >= 10000 ? (Math.round(n / 1000) / 10) + '万' : Math.round(n * 10) / 10 === Math.round(n) ? String(Math.round(n)) : String(Math.round(n * 10) / 10); }
+  function widthOf(host) { return Math.max(260, Math.round(host.getBoundingClientRect().width || host.clientWidth || 340)); }
+  function legend(items) { return el('div', { class: 'legend' }, items.map(function (x) { return el('span', {}, [el('i', { class: x[2] ? 'ln' : null, style: { background: x[1] } }), x[0]]); })); }
+  // 毎日のPV（棒）とスキの増え（線）。rows: [[日付, PV|null, スキ|null]]
+  function trendChart(host, rows) {
+    put(host, null);
+    var have = rows.filter(function (r) { return isNum(r[1]) || isNum(r[2]); });
+    if (have.length < 2) {
+      add(host, empty('📈', '明日からグラフが伸びます', have.length ? 'いまは ' + mdw(have[0][0]) + ' の1日分です。毎日の自動取得で、1日に1本ずつ増えていきます。' : '毎日の記録がたまると、ここに「1日のPV」と「その日に増えたスキ」が並びます。'));
+      return;
+    }
+    var hasPv = rows.some(function (r) { return isNum(r[1]); }), hasLk = rows.some(function (r) { return isNum(r[2]); });
+    var bi = hasPv ? 1 : 2, li = hasPv && hasLk ? 2 : -1;
+    var W = widthOf(host), H = 210, L = 38, R = li > 0 ? 34 : 10, T = 10, B = 24, n = rows.length, cw = (W - L - R) / n;
+    var bmax = niceMax(Math.max.apply(null, rows.map(function (r) { return isNum(r[bi]) ? r[bi] : 0; })));
+    var lv = li > 0 ? rows.map(function (r) { return r[li]; }).filter(isNum) : [], lmin = Math.min(0, Math.min.apply(null, lv.concat([0]))), lmax = niceMax(Math.max.apply(null, lv.concat([1])));
+    var y = function (v) { return T + (H - T - B) * (1 - v / bmax); }, yl = function (v) { return T + (H - T - B) * (1 - (v - lmin) / (lmax - lmin)); };
+    var cap = el('div', { class: 'cap' }), s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': '毎日のPVとスキのグラフ' });
+    [0, 0.5, 1].forEach(function (f) {
+      var v = bmax * f; s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: '#E7EBE9', 'stroke-dasharray': f ? '3 4' : null }));
+      s.appendChild(sv('text', { x: L - 6, y: y(v) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(v) }));
+      if (li > 0) s.appendChild(sv('text', { x: W - R + 6, y: yl(lmin + (lmax - lmin) * f) + 4, 'font-size': 11, fill: '#F0627A', text: short(lmin + (lmax - lmin) * f) }));
+    });
+    var bars = [], last = -1;
+    rows.forEach(function (r, i) {
+      var v = r[bi]; if (isNum(v)) last = i;
+      if (!isNum(v)) { bars.push(null); return; }
+      var bw = Math.max(2, Math.min(22, cw * 0.62)), x = L + cw * i + (cw - bw) / 2, yy = y(Math.max(0, v));
+      var b = sv('rect', { x: x, y: yy, width: bw, height: Math.max(1, y(0) - yy), rx: Math.min(4, bw / 2), fill: hasPv ? '#A9E6DB' : '#F7B3BF' }); s.appendChild(b); bars.push(b);
+    });
+    if (li > 0) {
+      var d = '', pen = false;
+      rows.forEach(function (r, i) { if (!isNum(r[li])) { pen = false; return; } var x = L + cw * (i + 0.5); d += (pen ? 'L' : 'M') + x.toFixed(1) + ',' + yl(r[li]).toFixed(1) + ' '; pen = true; });
+      s.appendChild(sv('path', { d: d, fill: 'none', stroke: '#F0627A', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      rows.forEach(function (r, i) { if (isNum(r[li])) s.appendChild(sv('circle', { cx: L + cw * (i + 0.5), cy: yl(r[li]), r: n > 20 ? 2.2 : 3, fill: '#fff', stroke: '#F0627A', 'stroke-width': 2 })); });
+    }
+    var lab = [0, Math.floor((n - 1) / 2), n - 1].filter(function (v, i, a) { return a.indexOf(v) === i; });
+    lab.forEach(function (i) { s.appendChild(sv('text', { x: L + cw * (i + 0.5), y: H - 6, 'font-size': 11, fill: '#8B9592', 'text-anchor': i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle', text: md(rows[i][0]) })); });
+    var cur = sv('line', { x1: 0, x2: 0, y1: T, y2: H - B, stroke: '#1B2220', 'stroke-opacity': 0.18, 'stroke-width': 1, visibility: 'hidden' }); s.appendChild(cur);
+    function pick(i) {
+      var r = rows[i]; put(cap, [el('span', { text: mdw(r[0]) }), hasPv ? el('span', {}, ['PV ', el('b', { class: 'num', text: fmt(r[1]) })]) : null, hasLk ? el('span', {}, ['スキ ', el('b', { class: 'num', style: { color: '#E0506B' }, text: isNum(r[2]) ? signed(r[2]) : '—' })]) : null]);
+      bars.forEach(function (b, j) { if (b) b.setAttribute('fill', j === i ? (hasPv ? '#2FB9A2' : '#F0627A') : (hasPv ? '#A9E6DB' : '#F7B3BF')); });
+      cur.setAttribute('x1', L + cw * (i + 0.5)); cur.setAttribute('x2', L + cw * (i + 0.5)); cur.setAttribute('visibility', 'visible');
+    }
+    rows.forEach(function (r, i) { var hit = sv('rect', { x: L + cw * i, y: 0, width: cw, height: H, fill: 'transparent' }); hit.addEventListener('pointerenter', function () { pick(i); }); hit.addEventListener('click', function () { pick(i); }); s.appendChild(hit); });
+    add(host, [cap, s, legend([hasPv ? ['1日のPV（日次）', '#A9E6DB'] : null, hasLk ? ['その日に増えたスキ', '#F0627A', li > 0] : null].filter(Boolean))]);
+    if (!hasPv) add(host, el('div', { class: 'hint', style: { marginTop: '4px' }, text: 'PVの日次データがまだありません。PVの自動取得（Cookie / GitHub）をオンにするか、「その他 → 記録」で「日次」を入れると、PVの棒が出ます。' }));
+    pick(last < 0 ? n - 1 : last);
+  }
+  // 折れ線（複数）。series: [{name, color, pts: [[ラベル, 値|null]]}]
+  function lineChart(host, series, opt) {
+    opt = opt || {}; put(host, null);
+    var n = series.length ? series[0].pts.length : 0, vals = [];
+    series.forEach(function (s) { s.pts.forEach(function (p) { if (isNum(p[1])) vals.push(p[1]); }); });
+    if (n < 2 || vals.length < 2) { add(host, empty(opt.icon || '📈', opt.emptyTitle || '明日からグラフが伸びます', opt.emptyText || '2日分以上の記録がたまると、ここに線が出ます。')); return; }
+    var W = widthOf(host), H = opt.h || 180, L = 40, R = 12, T = 10, B = 24, mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+    if (opt.zero) mn = Math.min(0, mn);
+    if (mn === mx) { mn -= 1; mx += 1; }
+    var pad = (mx - mn) * 0.08; mn = opt.zero && mn >= 0 ? mn : mn - pad; mx += pad;
+    var x = function (i) { return L + (W - L - R) * (n === 1 ? 0.5 : i / (n - 1)); }, y = function (v) { return T + (H - T - B) * (1 - (v - mn) / (mx - mn)); };
+    var s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': opt.label || 'グラフ' });
+    [mn, (mn + mx) / 2, mx].forEach(function (v, k) { s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: '#E7EBE9', 'stroke-dasharray': k ? '3 4' : null })); s.appendChild(sv('text', { x: L - 6, y: y(v) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(v) })); });
+    if (opt.zero && mn < 0) s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: '#C9D2CF' }));
+    series.forEach(function (sr) {
+      var d = '', pen = false, lastI = -1;
+      sr.pts.forEach(function (p, i) { if (!isNum(p[1])) { pen = false; return; } d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(p[1]).toFixed(1) + ' '; pen = true; lastI = i; });
+      if (opt.area && sr === series[0] && d) { var first = sr.pts.findIndex(function (p) { return isNum(p[1]); }); s.appendChild(sv('path', { d: d + 'L' + x(lastI).toFixed(1) + ',' + (H - B) + ' L' + x(first).toFixed(1) + ',' + (H - B) + ' Z', fill: sr.color, 'fill-opacity': 0.12 })); }
+      s.appendChild(sv('path', { d: d, fill: 'none', stroke: sr.color, 'stroke-width': 2.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      if (lastI >= 0) { s.appendChild(sv('circle', { cx: x(lastI), cy: y(sr.pts[lastI][1]), r: 4, fill: sr.color })); }
+    });
+    [0, n - 1].forEach(function (i) { s.appendChild(sv('text', { x: x(i), y: H - 6, 'font-size': 11, fill: '#8B9592', 'text-anchor': i ? 'end' : 'start', text: md(series[0].pts[i][0]) })); });
+    add(host, s);
+    if (series.length > 1 || opt.legend) add(host, legend(series.map(function (sr) { return [sr.name, sr.color, true]; })));
+  }
+  // 棒（グループ）。labels: [..]、series: [{name, color, vals: []}]
+  function barChart(host, labels, series, opt) {
+    opt = opt || {}; put(host, null);
+    var vals = []; series.forEach(function (s) { s.vals.forEach(function (v) { if (isNum(v)) vals.push(v); }); });
+    if (!vals.length || !vals.some(function (v) { return v > 0; })) { add(host, empty('📊', opt.emptyTitle || 'まだデータがありません', opt.emptyText || '')); return; }
+    var W = widthOf(host), H = opt.h || 170, L = 30, R = 6, T = 10, B = 24, n = labels.length, cw = (W - L - R) / n, mx = niceMax(Math.max.apply(null, vals));
+    var y = function (v) { return T + (H - T - B) * (1 - v / mx); };
+    var s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': opt.label || '棒グラフ' });
+    [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(mx * f), y2: y(mx * f), stroke: '#E7EBE9', 'stroke-dasharray': f ? '3 4' : null })); s.appendChild(sv('text', { x: L - 5, y: y(mx * f) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(mx * f) })); });
+    var gw = cw * 0.72, bw = Math.max(2, gw / series.length);
+    labels.forEach(function (lb, i) {
+      series.forEach(function (sr, k) { var v = sr.vals[i]; if (!isNum(v) || v <= 0) return; var bx = L + cw * i + (cw - gw) / 2 + bw * k; s.appendChild(sv('rect', { x: bx + 0.5, y: y(v), width: Math.max(1.5, bw - 1), height: y(0) - y(v), rx: Math.min(3, bw / 2), fill: sr.color }, sv('title', { text: lb + ' ' + sr.name + ': ' + fmt(v) }))); });
+      if (i % (n > 8 ? 3 : 1) === 0 || i === n - 1) s.appendChild(sv('text', { x: L + cw * (i + 0.5), y: H - 6, 'font-size': 10.5, fill: '#8B9592', 'text-anchor': 'middle', text: lb }));
+    });
+    add(host, [s, legend(series.map(function (sr) { return [sr.name, sr.color]; }))]);
+  }
+  function hbars(rows, people) {   // rows: [[項目, 単位, [値...], 補足]]、people: [{id, own}]
+    var mx = 0; return rows.map(function (r) {
+      mx = Math.max.apply(null, r[2].map(function (v) { return isNum(v) ? Math.abs(v) : 0; }).concat([0]));
+      return el('div', { class: 'mrow' }, [el('div', { class: 'ml' }, [r[0], r[3] ? el('span', { text: r[3] }) : null]),
+        people.map(function (p, i) { var v = r[2][i]; return el('div', { class: 'mbar' }, [el('span', { class: 'who', text: p.own ? '自分' : p.id }), el('span', { class: 'tr' }, el('span', { class: 'fl' + (p.own ? '' : ' b'), style: { width: (isNum(v) && mx ? Math.max(2, Math.abs(v) / mx * 100) : 0) + '%' } })), el('span', { class: 'val num', text: isNum(v) ? fmt(v) + (r[1] || '') : '—' })]); })]);
+    });
+  }
+
+  /* ---------- 安全のバナー（共有・Cookie・外部取得） ---------- */
+  function renderSafety(d) {
+    var c = d.cookie || {}, sh = d.sharing || {}, x = d.external, gh = !!x || !!c.github;
+    // 取得方法が GitHub のときは、Cookie は GitHub の Secrets にある。シートの Cookie は使わない
+    var using = gh ? c.registered : (c.enabled || c.registered);
+    if (sh.shared && using) { $('share').classList.remove('hidden'); $('share').textContent = sh.message + (c.enabled && !gh ? '\n（「共有中でもCookie取得を実行する」を「はい」にしていない限り、PVの自動取得は止まっています）' : '') + '\n' + sh.linkNote; }
+    else $('share').classList.add('hidden');
+    var box = $('cookie'), t = '', cls = '';
+    if (x) {
+      var p = x.pv || (x.cookie === 'invalid' ? { level: 'danger', message: 'GitHub/Colab の note の Cookie が使えなくなりました。GitHub の Secrets「NOTE_SESSION」を新しい値に更新してください。' } : {});
+      if (p.level === 'danger') { cls = 'danger'; t = '⚠ ' + p.message; }
+      else if (p.level === 'warn') { cls = 'warn'; t = '⚠ ' + p.message; }
+      else { cls = 'okbox'; t = '取得方法: GitHub/Colab｜最後に受け取り: ' + (x.lastAt ? mdt(x.lastAt) + '（' + x.source + '・' + x.result + '）' : 'まだ') + (x.pvAuto ? '｜PVの自動取得: ' + (x.dashOk ? 'OK（' + mdt(x.dashOk) + '）' : 'まだ（次の自動取得で入ります）') : ''); }
+      if (!x.enabled) { if (cls === 'okbox') cls = 'warn'; t += '\n⚠ 受け取り用の合言葉がありません（メニュー「受け取り用の合言葉を作る」）'; }
+      if (c.registered) t += '\n（このシートにも Cookie が登録されていますが、取得方法が「GitHub」のあいだは使いません。いらなければメニュー「Cookieを削除」）';
+    } else if (c.enabled && !c.registered) { cls = 'warn'; t = '⚠ PVの自動取得が「はい」ですが、Cookie が登録されていません。スプレッドシートのメニュー「note分析 → noteのCookieを登録」から登録してください。'; }
+    else if (c.registered && c.state === 'invalid') { cls = 'danger'; t = '⚠ note の Cookie が使えなくなりました（' + mdt(c.invalidAt) + '）。PVの自動取得は止まっています。\n理由: ' + c.reason + '\nPCで note にログインし直して、メニューから新しい Cookie を登録してください（やめるなら「Cookieを削除」）。'; }
+    else if (c.enabled && c.registered) { cls = 'okbox'; t = 'PVの自動取得: オン（Cookie ' + c.masked + '）｜最後に成功: ' + (c.lastOk ? mdt(c.lastOk) : 'まだ') + (c.imp ? '｜インプレッション: ' + (c.lastImpOk ? mdt(c.lastImpOk) : 'まだ') : '') + (c.lastError ? '\n前回のエラー（' + mdt(c.lastErrorAt) + '）: ' + c.lastError : '') + '\nリンク共有は自動で確認できません。スプレッドシートの「共有」で「一般的なアクセス：制限付き」か確認してください。'; }
+    box.textContent = t; box.className = t ? cls : 'hidden';
+    // 「その他」以外のタブでは、正常時のお知らせ（緑）は出さない（画面をすっきりさせる）。注意（赤・黄）はどのタブでも出す
+    box.setAttribute('data-ok', box.className === 'okbox' ? '1' : '');
+    var pvOn = x ? (x.pvAuto && !!x.dashOk && x.cookie !== 'invalid') : (c.enabled && c.registered && c.state !== 'invalid');
+    $('pvAutoNote').textContent = pvOn ? '（いまは自動取得がオンなので、手入力は予備です）' : '';
+  }
+
+  /* ---------- 下から出るシート（下書き・予定の編集） ---------- */
+  function openSheet(title, kids) { put('sheetTitle', title); put('sheetBody', kids); $('sheet').classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+  function closeSheet() { $('sheet').classList.add('hidden'); document.body.style.overflow = ''; }
+  $('sheetClose').onclick = closeSheet; $('sheet').addEventListener('click', function (e) { if (e.target === $('sheet')) closeSheet(); });
+  function copyText(t) {
+    function fallback() { var ta = el('textarea', { style: { position: 'fixed', top: '-1000px' } }); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('コピーしました。note に貼り付けて、読み直してから投稿してください。'); } catch (e) { toast('コピーできませんでした。長押しで選んでコピーしてください。'); } document.body.removeChild(ta); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('コピーしました。note に貼り付けて、読み直してから投稿してください。'); }, fallback); else fallback();
+  }
+  // 下書きの箱：本文＋コピー＋（note で開く）
+  function draftBox(drafts, openUrl, openLabel, at) {
+    return el('div', { class: 'drafts' }, [at ? el('div', { class: 'dmeta', text: 'AIの下書き（' + mdt(at) + '）・そのまま送らず、自分の言葉に直してから' }) : null,
+      drafts.map(function (t) { return el('div', { class: 'draft' }, [el('div', { class: 'dt', text: t }), el('button', { class: 'mini', type: 'button', onclick: function () { copyText(t); } }, 'コピー')]); }),
+      openUrl && safeUrl(openUrl) ? el('a', { class: 'openlink', href: openUrl, text: (openLabel || 'note で開く') + ' ↗' }) : null]);
+  }
+  function aiOn() { return !!(D && D.hasKey); }
+  function aiName() { return (D && D.aiLabel) || 'Gemini'; }
+  function usageText(u) { return u ? '今日のAI利用: ' + u.n + '回（上限 ' + u.cap + '回）' : ''; }
+  function setUsage(u) { if (u && D) D.aiUsage = u; document.querySelectorAll('.aiUsage').forEach(function (n) { n.textContent = usageText(D && D.aiUsage); }); }
+  function aiResult(r, statusId) { if (r.usage) setUsage(r.usage); if (!r.ok) { if (r.code === 'NOKEY') { D.hasKey = false; renderHome(D); } status(statusId, r.message, 'err'); return false; } return true; }
+
+  /* ---------- ホーム ---------- */
+  function kpi(label, value, unit, subs, cls) {
+    return el('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, [el('div', { class: 'l' }, [el('span', { class: 'dot' }), label]),
+      el('div', { class: 'v num' }, [value, unit ? el('small', { text: unit }) : null]), el('div', { class: 's' }, subs)]);
+  }
+  function logState(r) { r = String(r || ''); return /成功|完了/.test(r) && !/エラー|失敗/.test(r) ? 'ok' : /エラー|失敗|止/.test(r) ? 'ng' : 'wait'; }
+  function renderKpis(d) {
+    var h = d.home || {}, f = d.fans, py = h.pvYday || {}, pt = h.pvTotal || {}, fw = h.followers || {}, lg = d.lastLog, st = lg ? logState(lg.result) : 'wait';
+    put('kpis', [
+      kpi(py.date ? mdw(py.date) + 'のPV' : '昨日のPV', fmt(py.value), '', isNum(py.value) ? [isNum(py.prev) ? delta(py.value - py.prev) : null, isNum(py.prev) ? (py.prevDate ? md(py.prevDate) + 'より' : '') : '前の日の記録はまだ'] : ['日次のPVがまだありません'], 'hero'),
+      kpi('全期間のPV', fmt(pt.value), '', isNum(pt.value) ? ['PVが取れた' + fmt(pt.articles) + '記事の合計' + (pt.date ? '・' + md(pt.date) + '時点' : '')] : ['PVを記録すると出ます']),
+      kpi('フォロワー', fmt(fw.value), '人', isNum(fw.value) ? [isNum(fw.prev) ? delta(fw.value - fw.prev) : null, isNum(fw.prev) ? (fw.prevDate ? md(fw.prevDate) + 'より' : '') : '前の記録はまだ'] : ['まだ記録がありません']),
+      kpi('新しいファン', f ? fmt(h.newFans) : '—', f ? '人' : '', f ? ['前回の取得から', h.weekFansCount ? chip('今週 ' + h.weekFansCount + '人', 'g') : null] : ['「誰からのスキ」を記録すると出ます']),
+      kpi('未返信のコメント', f && h.hasComments ? fmt(h.unrepliedCount) : '—', f && h.hasComments ? '件' : '', f && h.hasComments ? [h.unrepliedCount ? '記録した時点' : chip('ぜんぶ返信済み', 'ok')] : ['「コメントした人」を記録すると出ます'], f && h.unrepliedCount ? 'alert' : ''),
+      kpi('最後の取得', lg ? mdt(lg.start) : 'まだ', '', lg ? [chip(lg.result || '—', st), lg.message && st === 'ng' ? el('span', { text: String(lg.message).slice(0, 40) }) : null] : ['右上の ⟳ で取得できます'], 'small')]);
+  }
+  function renderTop5(d) {
+    var top = (d.home || {}).top5 || [];
+    put('top5', top.length ? top.map(function (r, i) {
+      return el('a', { class: 'item', href: r[3] }, [el('span', { class: 'rank r' + (i + 1), text: i + 1 }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }),
+        el('div', { class: 'mt' }, [isNum(r[7]) && r[7] > 0 ? chip('昨日 ' + fmt(r[7]) + ' PV', 'g') : null, isNum(r[9]) && r[9] ? chip('スキ ' + signed(r[9]) + '（1日）', r[9] > 0 ? 'new' : '') : null, isNum(r[10]) && r[10] ? chip(signed(r[10]) + '（7日）') : null, el('span', { text: '公開 ' + md(r[2]) })])]),
+        el('div', { class: 'big num' }, [fmt(r[4]), el('small', { text: 'スキ' })]), chev()]);
+    }) : empty('🌱', 'まだ比べるデータがありません', '2回以上取得すると、スキが増えている記事・昨日よく読まれた記事がここに並びます。'));
+  }
+  // AIアシスタント（まとめて1回）。キーがないときは登録のしかた
+  function renderAiCard(d) {
+    if (!aiOn()) {
+      put('aiCard', [el('h2', {}, ['AIアシスタント', el('small', { text: '返信・お礼・記事案の下書き' })]),
+        el('div', { class: 'setupai' }, [el('div', { class: 'ic', text: '🔑' }), el('div', {}, [el('b', { text: aiName() + ' のAPIキーを登録すると使えます' }),
+          el('ol', {}, (D && D.aiProvider && D.aiProvider !== 'gemini') ? [el('li', { text: 'PCで ' + aiName() + ' のサイトでAPIキーを作る（使った分だけ料金がかかります）' }), el('li', { text: 'スプレッドシートのメニュー「note分析 → AIのAPIキーを登録」に貼る' }), el('li', { text: 'この画面を読み込み直す' })]
+            : [el('li', { text: 'PCで Google AI Studio（aistudio.google.com）を開き、「Get API key」で無料のキーを作る' }), el('li', { text: 'スプレッドシートのメニュー「note分析 → AIのAPIキーを登録」に貼る' }), el('li', { text: 'この画面を読み込み直す' })]),
+          el('div', { class: 'hint', text: 'キーはあなた本人だけが読める場所に保存され、シートには書かれません。使うAIは「設定」シートの「AIの種類」で、Gemini・ChatGPT・Claude から選べます。下書きを作るボタンを押したときだけ、記事のタイトル・相手の名前（と、コメントの本文）をAIに送ります。' })])])]);
+      return;
+    }
+    var h = d.home || {}, dr = d.drafts || { reply: {}, thanks: {} }, f = d.fans;
+    var needR = (h.unreplied || []).filter(function (r) { return r[6] && !dr.reply[r[6]]; }).length, needT = (h.weekFans || []).filter(function (r) { return !dr.thanks[r[1]]; }).length, needI = !dr.ideas;
+    put('aiCard', [el('h2', {}, ['AIアシスタント', el('small', { class: 'aiUsage', text: usageText(d.aiUsage) })]),
+      el('div', { class: 'todo' }, [chip(needR ? 'まだの返信 ' + needR + '件' : ((h.unreplied || []).length ? '返信 作成ずみ' : '返信待ち なし'), needR ? 'wait' : 'ok'), chip(needT ? 'まだのお礼 ' + needT + '人' : ((h.weekFans || []).length ? 'お礼 作成ずみ' : '新しいファン なし'), needT ? 'wait' : 'ok'), chip(needI ? '記事案 まだ' : '記事案 あり', needI ? 'wait' : 'ok')]),
+      el('div', { class: 'hint', text: '「まとめて」なら、まだ下書きがない返信（最大8件）・お礼（最大8人）・次の記事案3つを、AI 1回で作ります。作った下書きは「AI下書き」シートにとっておき、押さない限り作り直しません。送る・投稿するのは、自分で note から。' }),
+      el('div', { class: 'btns' }, [el('button', { class: 'btn', id: 'btnDraftAll', type: 'button', onclick: function () { draftAll(false); } }, 'まとめて下書きを作る（AI 1回）'),
+        el('button', { class: 'btn sec', id: 'btnDraftRedo', type: 'button', onclick: function () { draftAll(true); } }, 'まとめて作り直す')]),
+      el('div', { class: 'status', id: 'aiAllStatus' })]);
+  }
+  function draftAll(redo) {
+    var b = $('btnDraftAll'), b2 = $('btnDraftRedo'); b.disabled = b2.disabled = true; status('aiAllStatus', 'AIが下書きを作っています…（20〜60秒）');
+    call('naWebDraftAll', [{ redo: !!redo }], function (r) {
+      b.disabled = b2.disabled = false; if (!aiResult(r, 'aiAllStatus')) return;
+      if (r.drafts) D.drafts = r.drafts; renderHome(D); status('aiAllStatus', r.message, 'ok');
+    }, 'aiAllStatus');
+  }
+  var REPLY_SHOW = { n: 3, open: {} };
+  function renderReplies(d) {
+    var h = d.home || {}, f = d.fans, rep = h.unreplied || [], dr = (d.drafts || {}).reply || {};
+    $('replySub').textContent = f && h.hasComments ? (h.unrepliedCount > rep.length ? '新しい順に ' + rep.length + '件（全' + h.unrepliedCount + '件）' : '') : '';
+    put('replyList', !f || !h.hasComments ? empty('💬', 'コメントの記録はオフです', '「設定」シートの「コメントした人を記録（自分の記事だけ）」を「はい」にすると、ここに未返信のコメントが並びます。')
+      : rep.length ? [rep.slice(0, REPLY_SHOW.n).map(function (r) {
+        var c = dr[r[6]], box = c ? draftBox(c.drafts, r[5], '記事を開いて返信する', c.at) : null, open = REPLY_SHOW.open[r[6]];
+        if (box && !open) box.classList.add('hidden');
+        return el('div', { class: 'ritem' }, [el('a', { class: 'item', href: r[5] }, [avatar(r[1], r[2], true), el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' }, text: r[1] + ' さん' }), el('div', { class: 'mt' }, [el('span', { text: mdw(r[0]) }), el('span', { text: '「' + String(r[4]).slice(0, 34) + '」' })])]), chev()]),
+          box, (c || aiOn()) && r[6] ? el('div', { class: 'acts' }, [c ? el('button', { class: 'mini has dopen', type: 'button', 'aria-expanded': open ? 'true' : 'false', onclick: function () { REPLY_SHOW.open[r[6]] = !REPLY_SHOW.open[r[6]]; renderReplies(D); } }, open ? '下書きを閉じる' : '下書きを見る（' + c.drafts.length + '）') : null,
+            aiOn() ? el('button', { class: 'mini dmake', type: 'button', onclick: function () { replySheet(r); } }, c ? '作り直す' : '返信の下書きを作る') : null]) : null]);
+      }), rep.length > REPLY_SHOW.n ? el('button', { class: 'morebtn', type: 'button', onclick: function () { REPLY_SHOW.n += 10; renderReplies(D); } }, 'ほかの ' + (rep.length - REPLY_SHOW.n) + '件も見る') : null] : empty('🎉', '返信待ちのコメントはありません', '新しいコメントは、次の取得のときに記録されます。'));
+  }
+  function replySheet(r) {
+    var ta = el('textarea', { id: 'replyText', placeholder: '（ふつうは空のままでOK。自動で読めなかったときだけ、note のコメント欄から文章をコピーして貼り付け）', maxlength: 1000, style: { minHeight: '110px' } });
+    var out = el('div', { id: 'replyOut' }), btn = el('button', { class: 'btn', type: 'button', id: 'btnReplyGo' }, '下書きを作る（AI 1回）');
+    btn.onclick = function () {
+      btn.disabled = true; status('replyStatus', 'AIが下書きを作っています…');
+      call('naWebDraftReply', [r[6], ta.value], function (x) {
+        btn.disabled = false; if (!aiResult(x, 'replyStatus')) return;
+        status('replyStatus', (x.fetchedComment ? 'noteからコメント本文を読んで作りました。' : x.usedComment ? '貼り付けた本文を使って作りました。' : 'コメント本文を読めなかったので、タイトルと名前だけで作りました（本文を貼ると、より合った下書きになります）。') + (x.samples ? '（あなたの過去の返信 ' + x.samples + '件をお手本にしました）' : ''), 'ok');
+        D.drafts = D.drafts || { reply: {}, thanks: {} }; D.drafts.reply[r[6]] = { at: x.at, drafts: x.drafts }; REPLY_SHOW.open[r[6]] = true; put(out, draftBox(x.drafts, x.url || r[5], '記事を開いて返信する', x.at)); renderReplies(D);
+      }, 'replyStatus');
+    };
+    openSheet('返信の下書き', [el('div', { class: 'who' }, [avatar(r[1], r[2], true), el('div', {}, [el('b', { text: r[1] + ' さん' }), el('div', { class: 'hint', text: mdw(r[0]) + '・「' + r[4] + '」' })])]),
+      el('label', { for: 'replyText', text: 'コメントの本文（任意）' }), ta,
+      el('div', { class: 'privacy', text: '🔒 「下書きを作る」を押したときだけ、note の公開コメント欄からこのコメントの本文と、あなたの過去の返信（書き方のお手本）を読み、記事のタイトル・相手の名前と一緒に ' + aiName() + ' に送ります。どれもシートには保存しません。' }),
+      btn, el('div', { class: 'status', id: 'replyStatus' }), out]);
+  }
+  function renderWeekFans(d) {
+    var h = d.home || {}, f = d.fans, wf = h.weekFans || [], dr = (d.drafts || {}).thanks || {};
+    put('weekFans', !f ? empty('💚', 'ファンの記録はオフです', '「設定」シートの「誰からのスキを記録」を「はい」にして取得すると、新しく来てくれた人がここに並びます。')
+      : wf.length ? wf.map(function (r) {
+        var c = dr[r[1]];
+        return el('div', { class: 'fan' }, [avatar(r[0], r[1]), el('div', { class: 'nm', text: r[0] }), el('div', { class: 'id', text: '@' + r[1] }),
+          el('div', { class: 'st' }, [r[3] ? chip('♥ ' + r[3], 'new') : null, r[4] ? chip('💬 ' + r[4], 'g') : null]), el('div', { class: 'fa', text: mdw(r[5]) + '〜「' + String(r[6]).slice(0, 20) + '」' }),
+          link('noteを見る ↗', r[2], 'go'),
+          aiOn() || c ? el('button', { class: 'mini' + (c ? ' has' : ''), type: 'button', onclick: function () { thanksSheet(r); } }, c ? 'お礼の下書きを見る' : 'お礼の下書き') : null]);
+      }) : empty('🌱', 'この1週間の新しい人はまだいません', 'はじめてスキ・コメントしてくれた人が、ここにカードで並びます。'));
+  }
+  function thanksSheet(r) {
+    var dr = (D.drafts || {}).thanks || {}, c = dr[r[1]], out = el('div', {}, c ? draftBox(c.drafts, r[2], 'プロフィールを開く', c.at) : null);
+    var btn = aiOn() ? el('button', { class: 'btn' + (c ? ' sec' : ''), type: 'button' }, c ? '作り直す（AI 1回）' : 'お礼の下書きを作る（AI 1回）') : null;
+    if (btn) btn.onclick = function () {
+      btn.disabled = true; status('thanksStatus', 'AIが下書きを作っています…');
+      call('naWebDraftThanks', [r[1]], function (x) { btn.disabled = false; if (!aiResult(x, 'thanksStatus')) return; status('thanksStatus', '', ''); D.drafts.thanks[r[1]] = { at: x.at, drafts: x.drafts }; put(out, draftBox(x.drafts, x.url || r[2], 'プロフィールを開く', x.at)); renderWeekFans(D); }, 'thanksStatus');
+    };
+    openSheet('お礼の下書き', [el('div', { class: 'who' }, [avatar(r[0], r[1], true), el('div', {}, [el('b', { text: r[0] + ' さん' }), el('div', { class: 'hint', text: 'スキ ' + r[3] + '記事・コメント ' + r[4] + '件・はじめて ' + mdw(r[5]) })])]),
+      el('div', { class: 'privacy', text: '相手の記事を読みに行ったときに、コメントの最初に添える一言の案です。AIに送るのは、相手の名前と、スキしてくれた自分の記事のタイトルだけ。自動で送ることはしません。' }),
+      out, btn, el('div', { class: 'status', id: 'thanksStatus' })]);
+  }
+  // 次の記事案（伸びている記事＋タイトルの型から）
+  function renderIdeas(d) {
+    var tw = d.titleWins || { good: [], bad: [] }, ideas = d.drafts && d.drafts.ideas;
+    var pat = el('div', { class: 'pats' }, [tw.good.length ? el('div', {}, [el('span', { class: 'pl', text: '伸びている型' }), tw.good.map(function (p) { return chip(p.pattern.replace(/（.*$/, '') + ' +' + fmt(p.diff), 'up'); })]) : null,
+      tw.bad.length ? el('div', {}, [el('span', { class: 'pl', text: '伸びにくい型' }), tw.bad.map(function (p) { return chip(p.pattern.replace(/（.*$/, '') + ' ' + fmt(p.diff), 'down'); })]) : null,
+      !tw.good.length && !tw.bad.length ? el('div', { class: 'hint', text: 'タイトルの型の差は、記事が増えると出ます（3本以上の型だけ）。' }) : null]);
+    var list = ideas && ideas.ideas && ideas.ideas.length ? el('div', { class: 'ideas' }, [el('div', { class: 'dmeta', text: 'AIの記事案（' + mdt(ideas.at) + '）' }), ideas.ideas.map(function (x, i) {
+      return el('div', { class: 'idea' }, [el('div', { class: 'in', text: i + 1 }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: x.title }), x.why ? el('div', { class: 'why', text: x.why }) : null,
+        x.outline && x.outline.length ? el('ul', {}, x.outline.map(function (o) { return el('li', { text: o }); })) : null,
+        el('div', { class: 'acts' }, [el('button', { class: 'mini', type: 'button', onclick: function () { copyText(x.title + (x.outline && x.outline.length ? '\n\n' + x.outline.map(function (o) { return '## ' + o; }).join('\n') : '')); } }, 'コピー'),
+          el('button', { class: 'mini g', type: 'button', onclick: function () { var s = (D.slots && D.slots.next) || {}; planEditor({ date: s.date || today, time: s.time || '', title: x.title, status: '下書き', memo: (x.why || '') + (x.outline && x.outline.length ? '\n見出し: ' + x.outline.join(' / ') : '') }); } }, '予定帳に追加')])])]);
+    })]) : null;
+    var btn = aiOn() ? el('button', { class: 'btn' + (list ? ' sec' : ''), type: 'button', id: 'btnIdeas' }, list ? '記事案を作り直す（AI 1回）' : '記事案を3つ考える（AI 1回）') : null;
+    if (btn) btn.onclick = function () {
+      btn.disabled = true; status('ideaStatus', 'AIが考えています…（20〜40秒）');
+      call('naWebArticleIdeas', [], function (x) { btn.disabled = false; if (!aiResult(x, 'ideaStatus')) return; D.drafts = D.drafts || { reply: {}, thanks: {} }; D.drafts.ideas = { at: x.at, ideas: x.ideas }; renderIdeas(D); status('ideaStatus', 'できました（' + x.model + '）', 'ok'); }, 'ideaStatus');
+    };
+    put('ideaCard', [el('h2', {}, ['次の記事案', el('small', { text: '伸びている記事とタイトルの型から' })]), pat, list, btn, aiOn() ? el('div', { class: 'status', id: 'ideaStatus' }) : el('div', { class: 'hint', style: { marginTop: '8px' }, text: 'Gemini のキーを登録すると、この型にそって記事案を3つ出せます（上の「AIアシスタント」を参照）。' })]);
+  }
+  function renderCmpMini(d) {
+    var c = d.cmp;
+    if (!c) { put('cmpMini', empty('📊', 'ベンチマークが未設定です', '「設定」シートの「ベンチマークのクリエイターID」に、参考にしたい人のIDを入れてください（note.com/〇〇 の〇〇の部分。カンマ区切りで5人まで）。')); return; }
+    var ppl = c.people.slice(0, 2);
+    put('cmpMini', [el('div', {}, hbars([['投稿ペース', '本/週', ppl.map(function (p) { return p.pace; }), '直近30日'], ['スキ中央値', '', ppl.map(function (p) { return p.median; }), c.days ? '直近' + c.days + '日の記事' : '全期間の記事']], ppl)),
+      el('div', { class: 'chart', id: 'cmpMiniChart', style: { marginTop: '12px' } })]);
+  }
+  function renderHome(d) {
+    renderKpis(d); $('trendSub').textContent = '直近30日'; renderTop5(d); renderAiCard(d); renderReplies(d); renderWeekFans(d); renderIdeas(d); renderCmpMini(d);
+    var n = (d.home || {}).newFans; $('fanBadge').textContent = n > 99 ? '99+' : String(n || ''); $('fanBadge').classList.toggle('hidden', !n);
+  }
+
+  /* ---------- 記事タブ ---------- */
+  // [キー, 多い順（1回目）, 少ない順（もう一度押したとき）]。「スキが多い順」は2番目に置いて、スマホでもすぐ見えるように
+  var SORTS = [['date', '新しい順', '古い順'], ['likes', 'スキが多い順', 'スキが少ない順'], ['pv', 'PVが多い順', 'PVが少ない順'], ['yday', '昨日のPV順', '昨日のPVが少ない順'], ['g7', '7日で伸びた順', '7日の伸びが小さい順'], ['rate', 'スキ率が高い順', 'スキ率が低い順'], ['comments', 'コメントが多い順', 'コメントが少ない順']];
+  var SORT_COL = { date: 2, pv: 6, yday: 7, likes: 4, rate: 8, comments: 5, g7: 10 };
+  function renderArtSort() {
+    put('artSort', SORTS.map(function (s) {
+      var on = ART.sort === s[0];
+      return el('button', { type: 'button', class: on ? 'on' : null, 'data-sort': s[0], 'aria-pressed': on ? 'true' : 'false', title: on ? 'もう一度押すと逆の順' : null, onclick: function () { if (ART.sort === s[0]) ART.asc = !ART.asc; else { ART.sort = s[0]; ART.asc = false; } ART.limit = 60; renderArtSort(); renderArticles(); } }, on && ART.asc ? s[2] : s[1]);
+    }));
+  }
+  function renderArticles() {
+    var rows = (D && D.articles) || [], q = ART.q.trim().toLowerCase(), c = SORT_COL[ART.sort];
+    var list = rows.filter(function (r) { return !q || String(r[1]).toLowerCase().indexOf(q) >= 0; });
+    list.sort(function (a, b) {
+      var x = a[c], y = b[c];
+      if (c === 2) return ART.asc ? (x < y ? -1 : x > y ? 1 : 0) : (x < y ? 1 : x > y ? -1 : 0);
+      var nx = isNum(x), ny = isNum(y); if (nx !== ny) return nx ? -1 : 1;   // 数字がない記事はいつも下
+      return ART.asc ? x - y : y - x;
+    });
+    $('artCount').textContent = list.length + '本' + (q ? '（「' + ART.q.trim() + '」で絞り込み）' : '') + ((D && D.articleCount > rows.length) ? '・新しい ' + rows.length + '本まで' : '');
+    put('artList', list.length ? list.slice(0, ART.limit).map(function (r) {
+      var hl = function (k) { return ART.sort === k ? 'on' : null; };
+      return el('div', { class: 'arow' }, [link(r[1], r[3], 'tt'), el('div', { class: 'dt' }, [el('span', { text: '公開 ' + mdw(r[2]) }), isNum(r[7]) ? chip('昨日 ' + fmt(r[7]) + ' PV', 'g') : null, isNum(r[10]) && r[10] > 0 ? chip('スキ ' + signed(r[10]) + '（7日）', 'new') : null]),
+        el('div', { class: 'stats num' }, [el('div', { class: hl('pv') }, [el('b', { text: fmt(r[6]) }), el('span', { text: 'PV' })]), el('div', { class: hl('likes') }, [el('b', { text: fmt(r[4]) }), el('span', { text: 'スキ' })]),
+          el('div', { class: hl('comments') }, [el('b', { text: fmt(r[5]) }), el('span', { text: 'コメント' })]), el('div', { class: hl('rate') }, [el('b', { text: isNum(r[8]) ? r[8] + '%' : '—' }), el('span', { text: 'スキ率' })])])]);
+    }) : empty('🔍', q ? '見つかりませんでした' : '記事がまだありません', q ? '別のことばで探してみてください。' : '「今すぐ取得する」で記事一覧を取ってきます。'));
+    $('artMore').classList.toggle('hidden', list.length <= ART.limit);
+    $('artMeta').textContent = rows.some(function (r) { return isNum(r[6]); }) ? 'PV・スキ率は「PV入力」の全期間の値から' : 'PVを記録すると、PV・スキ率も並びます';
+  }
+  $('artQ').addEventListener('input', function () { ART.q = this.value; ART.limit = 60; renderArticles(); });
+  $('artMore').onclick = function () { ART.limit += 60; renderArticles(); };
+
+  /* ---------- ファンタブ ---------- */
+  function renderFans() {
+    var f = D && D.fans;
+    if (!f) { put('fanKpis', null); put('fanRank', empty('💚', 'ファンの記録はオフです', '「設定」で自分のIDを入れ、「誰からのスキを記録」を「はい」にして取得すると表示されます。')); put('fanNew', null); put('fanArt', null); $('fanCount').textContent = ''; return; }
+    put('fanKpis', [kpi('スキしてくれた人', fmt(f.people), '人', ['3記事以上: ' + fmt(f.repeaters) + '人']), kpi('コメントしてくれた人', fmt(f.commenters || 0), '人', ['コメントだけ: ' + fmt(f.commentOnly || 0) + '人']),
+      kpi('前回から新しく', fmt(f.newPeople), '人', [f.since + ' 以降']), kpi('今週はじめて', fmt(f.weekNewCount || 0), '人', ['スキ・コメントが最初']) ]);
+    renderFanSort();
+    var q = FAN.q.trim().toLowerCase(), ranked = fanRanked(f.all || f.ranking || [], FAN.sort, FAN.period);
+    var list = ranked.filter(function (x) { var r = x.r; return !q || String(r[1]).toLowerCase().indexOf(q) >= 0 || String(r[2]).toLowerCase().indexOf(q) >= 0; });
+    var all = f.all || f.ranking || [], mode = FAN_SORTS.filter(function (s) { return s[0] === FAN.sort; })[0], per = FAN_PERIODS.filter(function (s) { return s[0] === FAN.period; })[0];
+    $('fanCount').textContent = (q ? list.length + '人が見つかりました' : per[1] + '・' + mode[1] + '・上位 ' + Math.min(ranked.length, FAN.limit) + '人を表示') + '（記録した ' + fmt(f.total || all.length) + '人のうち' + (all.length < (f.total || 0) ? '上位 ' + all.length + '人から探せます' : '') + '）';
+    var noComment = FAN.sort === 'comments' && FAN.period === 'all' && !ranked.length, noPeriod = FAN.period !== 'all' && !ranked.length;
+    put('fanRank', list.length ? list.slice(0, FAN.limit).map(function (x) {
+      var r = x.r, fv = x.f, rank = x.rank, last = String(r[11] || '') > String(r[7] || '') ? String(r[11]) : String(r[7] || '');
+      var big = FAN.sort === 'likes' ? [String(fv.likes), el('small', { text: '記事にスキ' })] : FAN.sort === 'comments' ? [String(fv.comments), el('small', { text: 'コメント' })] : [String(fv.total), el('small', { text: 'スキ+コメ' })];
+      return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('span', { class: 'rank' + (rank <= 3 ? ' r' + rank : ''), text: rank }), avatar(r[1], r[2], true),
+        el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' } }, [r[1] || r[2], ' ', r[9] ? chip(r[9], /新しい/.test(r[9]) ? 'new' : 'g') : null]),
+          el('div', { class: 'mt' }, [el('span', { text: '♥ ' + fv.likes + '記事' }), fv.comments ? el('span', { text: '💬 ' + fv.comments }) : null, el('span', { text: '最後 ' + md(last) })])]),
+        el('div', { class: 'big num' }, big)]);
+    }) : noPeriod ? empty('📅', FAN.period === 'week' ? 'この1週間の記録はまだありません' : 'この30日の記録はまだありません', '「全期間」に切りかえると、これまでの全員が見られます。')
+      : noComment ? empty('💬', 'コメントのデータはまだありません', f.commentsOn === false ? '「設定」の「コメントした人を記録（自分の記事だけ）」を「はい」にすると、次の自動取得から入ります。' : 'コメントのデータは次の自動取得から入ります。')
+      : empty('🔍', '見つかりませんでした', '名前の一部や、note のID（@のあと）で探せます。'));
+    $('fanMore').classList.toggle('hidden', list.length <= FAN.limit);
+    $('fanSince').textContent = f.since + ' 以降';
+    put('fanNew', (f.newRows || []).length ? f.newRows.slice(0, 15).map(function (r) {
+      return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [avatar(r[1], r[2], true), el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' } }, [r[1], ' ', r[6] ? chip('はじめて', 'new') : null]), el('div', { class: 'mt' }, [el('span', { text: mdw(r[0]) }), el('span', { text: '「' + String(r[4]).slice(0, 26) + '」' })])])]);
+    }) : empty('💤', '新しいスキはまだありません', '次の取得で、前回より後のスキがここに出ます。'));
+    put('fanArt', (f.articles || []).length ? f.articles.map(function (r, i) {
+      return el(safeUrl(r[5]) ? 'a' : 'div', { class: 'item', href: r[5] }, [el('span', { class: 'rank' + (i < 3 ? ' r' + (i + 1) : ''), text: i + 1 }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[4] }), el('div', { class: 'mt', text: 'スキした人 ' + r[1] + '人のうち、はじめての人 ' + r[3] + '%' })]), el('div', { class: 'big num' }, [String(r[2]), el('small', { text: '新しい人' })])]);
+    }) : empty('🌱', 'まだありません', ''));
+  }
+  // ファンの並べかえ：合計（スキした記事数＋コメント数）／スキした記事の数／コメントの数。順位はその並びで付け直す
+  var FAN_SORTS = [['total', '合計順'], ['likes', 'スキ順'], ['comments', 'コメント順']];
+  var FAN_PERIODS = [['week', '週間'], ['month', '月間'], ['all', '全期間']];
+  // 期間ごとの数：r[4]=スキした記事数 r[10]=コメント数（全期間）／r[12] r[13]=直近7日／r[5] r[14]=直近30日
+  function fanVal(r, mode, period) {
+    var lk = period === 'week' ? (r[12] || 0) : period === 'month' ? (r[5] || 0) : (r[4] || 0);
+    var cm = period === 'week' ? (r[13] || 0) : period === 'month' ? (r[14] || 0) : (r[10] || 0);
+    return { likes: lk, comments: cm, total: lk + cm, v: mode === 'likes' ? lk : mode === 'comments' ? cm : lk + cm };
+  }
+  function fanRanked(rows, mode, period) {
+    period = period || 'all';
+    var list = rows.map(function (r) { return { r: r, f: fanVal(r, mode, period) }; });
+    if (mode === 'comments' || period !== 'all') list = list.filter(function (x) { return x.f.v > 0; });
+    list.sort(function (a, b) { return b.f.v - a.f.v || b.f.total - a.f.total || a.r[0] - b.r[0]; });
+    return list.map(function (x, i) { return { r: x.r, f: x.f, rank: i + 1 }; });
+  }
+  function renderFanSort() {
+    put('fanSort', FAN_SORTS.map(function (s) {
+      var on = FAN.sort === s[0];
+      return el('button', { type: 'button', class: on ? 'on' : null, 'data-fsort': s[0], 'aria-pressed': on ? 'true' : 'false', onclick: function () { FAN.sort = s[0]; FAN.limit = 50; renderFans(); } }, s[1]);
+    }));
+    put('fanPeriod', FAN_PERIODS.map(function (s) {
+      var on = FAN.period === s[0];
+      return el('button', { type: 'button', class: on ? 'on' : null, 'data-fperiod': s[0], 'aria-pressed': on ? 'true' : 'false', onclick: function () { FAN.period = s[0]; FAN.limit = 50; renderFans(); } }, s[1]);
+    }));
+  }
+  $('fanQ').addEventListener('input', function () { FAN.q = this.value; FAN.limit = 50; renderFans(); });
+  $('fanMore').onclick = function () { FAN.limit += 50; renderFans(); };
+
+  /* ---------- v1.5：ファンの動き・段階・効果・次の一手（データは out.ins） ---------- */
+  var MOVE = { t: 'leaving', limit: 20 };
+  var MOVES = [['leaving', '離れかけ', '前はよく来てくれていたのに、最近の記事には来ていない人（2週間以上なにもなし）。'], ['declining', '減ってきた', '前にくらべて、スキしてくれる記事の割合が半分以下になった人。'],
+    ['rising', '増えてきた', '最近の記事によく来てくれるようになった人。'], ['back', '戻ってきた', '4週間以上あいて、この1週間にまた来てくれた人。'], ['almost', '常連になりかけ', 'この30日の記事に2回以上スキしてくれた、常連の一歩手前の人。']];
+  var STAGE_NAME = { core: 'コアファン', regular: '常連', repeat: 'リピーター', first: 'はじめて', rest: 'お休み中' };
+  var STAGE_COLOR = { core: '#F0627A', regular: '#41C9B4', repeat: '#9FDCD1', first: '#D6E4E1' };
+  var MOVE_NAME = { leaving: '離れかけ', declining: '減ってきた', rising: '増えてきた', back: '戻ってきた' };
+  function metToday(u) { var t = (D && D.now || '').slice(0, 10), k = String(u).toLowerCase(); return ((D && D.actions) || []).some(function (a) { return String(a[0]).toLowerCase() === k && a[1] === t; }); }
+  function metEver(u) { var k = String(u).toLowerCase(); return ((D && D.actions) || []).filter(function (a) { return String(a[0]).toLowerCase() === k; }).map(function (a) { return a[1]; }).pop() || ''; }
+  function metBtn(u, nick) {
+    var on = metToday(u), b = el('button', { type: 'button', class: 'mini' + (on ? ' met' : ''), 'data-met': u, onclick: function (e) { e.preventDefault(); e.stopPropagation(); b.disabled = true;
+      call('naWebLogAction', [u, nick], function (r) { b.disabled = false; if (!r.ok) { toast(r.message); return; } D.actions = (r.actions || []).map(function (a) { return [a.urlname, ymd(a.t)]; }); toast(r.message); renderInsights(); }); } }, on ? '✓ 会いに行った' : '会いに行った');
+    return b;
+  }
+  function ymd(ms) { var d = new Date(ms + 9 * 3600000); return d.toISOString().slice(0, 10); }
+  function spark(vals, color) {
+    var W = 64, H = 24, mx = Math.max.apply(null, vals.concat([1])), n = vals.length, s = sv('svg', { class: 'spark', width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, 'aria-hidden': 'true' });
+    vals.forEach(function (v, i) { var h = v ? Math.max(2, v / mx * (H - 2)) : 1; s.appendChild(sv('rect', { x: i * (W / n) + 0.5, y: H - h, width: W / n - 1.5, height: h, rx: 1, fill: v ? color : '#E3E8E6' })); });
+    return s;
+  }
+  function personRow(u, nick, sub, color) {
+    var P = (D.ins.people || {})[String(u).toLowerCase()], url = 'https://note.com/' + encodeURIComponent(u);
+    return el('div', { class: 'item', style: { cursor: 'pointer' }, onclick: function () { openPerson(u, nick); } }, [avatar(nick, u, true),
+      el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' } }, [nick || u, ' ', P && P[3] && STAGE_NAME[P[3]] && P[3] !== 'rest' ? chip(STAGE_NAME[P[3]], P[3] === 'core' ? 'new' : 'g') : null]),
+        el('div', { class: 'mt' }, sub), el('div', { class: 'pacts' }, [el('a', { class: 'mini', href: url, target: '_blank', rel: 'noopener', onclick: function (e) { e.stopPropagation(); } }, 'プロフィール ↗'), metBtn(u, nick)])]),
+      P ? spark(P[1], color || '#F0627A') : null]);
+  }
+  function openPerson(u, nick) {
+    var P = (D.ins.people || {})[String(u).toLowerCase()], url = 'https://note.com/' + encodeURIComponent(u), host = el('div', { class: 'chart' });
+    var kids = [el('div', { class: 'item', style: { borderTop: 0 } }, [avatar(nick, u), el('div', { class: 'body' }, [el('div', { class: 'tt', text: (P && P[0]) || nick || u }), el('div', { class: 'mt' }, [el('span', { text: '@' + u }), P && P[3] ? chip(STAGE_NAME[P[3]] || '', P[3] === 'core' ? 'new' : 'g') : null, P && P[4] ? chip(MOVE_NAME[P[4]], P[4] === 'rising' || P[4] === 'back' ? 'up' : 'down') : null])])])];
+    if (P) {
+      kids.push(el('div', { class: 'pstats num' }, [el('div', {}, [el('b', { text: fmt(P[7]) }), el('span', { text: 'スキした記事（記録分）' })]), el('div', {}, [el('b', { text: fmt(P[8]) }), el('span', { text: 'コメント' })]), el('div', {}, [el('b', { text: P[6] ? P[5] + '/' + P[6] : '—' }), el('span', { text: '最近60日の記事' })])]));
+      kids.push(el('div', { class: 'hint', text: '12週間の動き（週ごと）・はじめて ' + md(P[9]) + (metEver(u) ? '・最後に会いに行った日 ' + md(metEver(u)) : '') }));
+      kids.push(host);
+    } else kids.push(el('div', { class: 'hint', text: 'この人のくわしい記録は、ランキングの上位・常連・動きのある人だけ表示します。' }));
+    kids.push(el('div', { class: 'pacts', style: { marginTop: '12px' } }, [el('a', { class: 'mini', href: url, target: '_blank', rel: 'noopener' }, 'プロフィールを開く ↗'), metBtn(u, nick)]));
+    kids.push(el('p', { class: 'hint', text: '「会いに行った」は、相手の記事を読みに行ったときの自分用のメモです。押しても相手には何も届きません。14日以内にスキやコメントがあれば「効果」に出ます。' }));
+    openSheet('ファンのくわしい動き', kids);
+    if (P) barChart(host, D.ins.weeks.map(md), [{ name: 'スキした記事', color: '#F0627A', vals: P[1] }, { name: 'コメント', color: '#41C9B4', vals: P[2] }], { h: 160, label: '12週間のスキとコメント' });
+  }
+  function renderInsights() {
+    var I = D && D.ins; ['stageCard', 'moveCard', 'effCard', 'nextCard'].forEach(function (id) { $(id).classList.toggle('hidden', !I); });
+    if (!I) { put('lowList', empty('📈', 'まだ出せません', 'ファンの記録とPVがそろうと出ます。')); put('hidList', null); put('folList', null); return; }
+    // 段階
+    var main = I.stages.filter(function (x) { return x[0] !== 'rest'; }), sum = main.reduce(function (a, x) { return a + x[2]; }, 0) || 1, rest = I.stages.filter(function (x) { return x[0] === 'rest'; })[0];
+    put('stages', main.map(function (x) { var d = x[3]; return el('button', { type: 'button', class: 'stg ' + x[0], 'data-stage': x[0], onclick: function () { openStage(x[0]); } }, [el('div', { class: 'l', text: x[1] }), el('div', { class: 'v num' }, [fmt(x[2]), el('small', { text: '人' })]), el('div', { class: 'd' + (d > 0 ? ' up' : d < 0 ? ' down' : ''), text: d ? (d > 0 ? '▲ ' : '▼ ') + Math.abs(d) + '人' : '± 0' })]); }));
+    put('stbar', main.map(function (x) { return el('i', { style: { width: (x[2] / sum * 100) + '%', background: STAGE_COLOR[x[0]] }, title: x[1] + ' ' + x[2] + '人' }); }));
+    $('stageHint').textContent = 'コアファン：最近60日の記事の6割以上にスキ（またはコメント3回以上）／常連：3割以上／リピーター：2回以上／はじめて：1回だけ。90日なにもない人は「お休み中」（' + fmt(rest ? rest[2] : 0) + '人）。タップで一覧';
+    // 動き
+    var counts = { leaving: I.alerts.leaving.length, declining: I.alerts.declining.length, rising: I.alerts.rising.length, back: I.alerts.back.length, almost: I.almostCount || 0 };
+    put('moveTabs', MOVES.map(function (m) { var on = MOVE.t === m[0]; return el('button', { type: 'button', class: on ? 'on' : null, 'data-move': m[0], 'aria-pressed': on ? 'true' : 'false', onclick: function () { MOVE.t = m[0]; MOVE.limit = 20; renderInsights(); } }, m[1] + ' ' + counts[m[0]]); }));
+    var mv = MOVES.filter(function (m) { return m[0] === MOVE.t; })[0]; $('moveHint').textContent = mv[2]; $('moveSub').textContent = I.window ? '最近の記事 ' + I.window.recent + '本と、その前の ' + I.window.past + '本でくらべています' : '';
+    var rows = MOVE.t === 'almost' ? I.almost : I.alerts[MOVE.t], col = MOVE.t === 'rising' || MOVE.t === 'back' || MOVE.t === 'almost' ? '#41C9B4' : '#F0627A';
+    put('moveList', rows.length ? rows.slice(0, MOVE.limit).map(function (r) {
+      var sub = MOVE.t === 'almost' ? [el('span', { text: 'この30日 ♥ ' + r[2] + '記事' }), r[5] ? el('span', { text: '💬 ' + r[5] }) : null, el('span', { text: '最後 ' + md(r[4]) })]
+        : [el('span', { text: '前 ' + r[2] + '% → 最近 ' + r[3] + '%' }), el('span', { text: '（' + r[4] + '本 → ' + r[5] + '本）' }), el('span', { text: '最後 ' + md(r[6]) })];
+      return personRow(r[0], r[1], sub, col);
+    }) : empty(MOVE.t === 'leaving' || MOVE.t === 'declining' ? '🌿' : '🔍', MOVE.t === 'leaving' ? '離れかけの人はいません' : 'いまは該当する人はいません', ''));
+    $('moveMore').classList.toggle('hidden', rows.length <= MOVE.limit);
+    // 効果
+    var E = I.effect || {}, A = E.actions || {}, B = E.baseline || {}, R = E.reply || {};
+    var pc = function (a, b) { return b ? Math.round(a / b * 100) : null; }, box = function (l, v, s, hi) { return el('div', { class: 'effb' + (hi ? ' hi' : '') }, [el('div', { class: 'l', text: l }), el('div', { class: 'v num' }, isNum(v) ? [String(v), el('small', { text: '%' })] : ['—']), el('div', { class: 's', text: s })]); };
+    put('effBoxes', [box('会いに行った人が、また来てくれた', pc(A.back, A.done), A.n ? A.done + '人中 ' + A.back + '人（14日以内）' + (A.wait ? '・まだ待っている人 ' + A.wait + '人' : '') : 'まだ記録がありません。「会いに行った」を押すと測れます', true),
+      box('何もしなかった離れかけの人', pc(B.back, B.n), B.n ? '2週間前の離れかけ ' + B.n + '人中 ' + B.back + '人が戻った' : 'くらべる人がまだいません'),
+      box('返信したコメントの人が、また来てくれた', pc(R.replied && R.replied[1], R.replied && R.replied[0]), R.replied && R.replied[0] ? R.replied[0] + '人中 ' + R.replied[1] + '人（30日以内）' : 'まだデータがありません', true),
+      box('返信しなかったコメントの人', pc(R.unreplied && R.unreplied[1], R.unreplied && R.unreplied[0]), R.unreplied && R.unreplied[0] ? R.unreplied[0] + '人中 ' + R.unreplied[1] + '人' : 'まだデータがありません')]);
+    put('effList', (A.rows || []).slice(0, 8).map(function (r) { return el('div', { class: 'item' }, [avatar(r[1], r[0], true), el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' }, text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: md(r[2]) + ' に会いに行った' })])]), chip(r[3] === 'back' ? md(r[4]) + ' にまた来た' : r[3] === 'wait' ? '様子見中' : '14日で反応なし', r[3] === 'back' ? 'up' : r[3] === 'wait' ? 'wait' : null)]); }));
+    // 次の一手（ホーム）
+    put('nextList', (I.next || []).length ? I.next.map(function (n, i) { return el('button', { type: 'button', class: 'nx k-' + n[0], 'data-next': n[0], onclick: function () { show(n[3]); if (n[0] === 'visit') { MOVE.t = 'leaving'; renderInsights(); } if (n[0] === 'almost') { MOVE.t = 'almost'; renderInsights(); } if (n[0] === 'back') { MOVE.t = 'back'; renderInsights(); } } }, [el('span', { class: 'n', text: i + 1 }), el('span', { class: 'b' }, [el('div', { class: 't', text: n[1] }), el('div', { class: 'x', text: n[2] })]), el('span', { class: 'go', text: '見る →' })]); })
+      : empty('✨', '今週はとくにありません', 'いい調子です。'));
+    // 記事
+    var AI = I.articles || {}, art = function (r, kind) { return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: '公開 ' + md(r[2]) }), el('span', { text: fmt(r[4]) + ' PV' }), el('span', { text: '♥ ' + fmt(r[5]) })])]), el('div', { class: 'big num' }, [r[6] + '%', el('small', { text: 'スキ率' })])]); };
+    $('lowSub').textContent = AI.medRate !== null && AI.medRate !== undefined ? 'スキ率の真ん中 ' + AI.medRate + '%' : ''; $('hidSub').textContent = AI.medPv ? 'PVの真ん中 ' + fmt(AI.medPv) : '';
+    put('lowList', (AI.lowRate || []).length ? AI.lowRate.map(art) : empty('📈', 'まだ出せません', 'PVが取れた記事が8本以上になると出ます。'));
+    put('hidList', (AI.hidden || []).length ? AI.hidden.map(art) : empty('💎', 'まだ出せません', 'PVが取れた記事が8本以上になると出ます。'));
+    var F = I.follow || {};
+    put('folList', (F.rows || []).length ? F.rows.map(function (r) { return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: '公開 ' + md(r[2]) }), el('span', { text: r[5] + '時間で' }), r[6] ? chip('ほかの記事と重なり ' + r[6] + '本', 'wait') : null])]), el('div', { class: 'big num' }, [(r[4] > 0 ? '+' : '') + r[4], el('small', { text: 'フォロワー' })])]); })
+      : empty('🌱', 'フォロワーの記録をためています', '毎朝のフォロワー数が1週間ほどたまると、記事ごとの「増えた人数」が出ます（いま ' + (F.days || 0) + '日分）。'));
+  }
+  function openStage(st) {
+    var I = D.ins, list = Object.keys(I.people).filter(function (k) { return I.people[k][3] === st; }).map(function (k) { return [k, I.people[k]]; }).sort(function (a, b) { return b[1][5] - a[1][5] || b[1][7] - a[1][7]; });
+    openSheet(STAGE_NAME[st] + '（' + list.length + '人' + (st === 'repeat' || st === 'first' ? '・ランキング上位から' : '') + '）', list.length ? el('div', { class: 'list' }, list.slice(0, 80).map(function (x) { return personRow(x[0], x[1][0], [el('span', { text: '最近60日 ♥ ' + x[1][5] + '/' + x[1][6] + '記事' }), x[1][8] ? el('span', { text: '💬 ' + x[1][8] }) : null], STAGE_COLOR[st] === '#D6E4E1' ? '#9AA5B8' : STAGE_COLOR[st]); })) : empty('🌱', 'この段階の人の一覧はありません', ''));
+  }
+  $('moveMore').onclick = function () { MOVE.limit += 20; renderInsights(); };
+
+  /* ---------- 比較タブ ---------- */
+  var BENCH_COLORS = ['#9AA5B8', '#C3A6E6', '#F2B880'];
+  function cmpColor(p, i) { return p.own ? '#2FB9A2' : BENCH_COLORS[(i - 1 + 3) % 3]; }
+  function renderCmp() {
+    var c = D && D.cmp;
+    if (!c) { put('cmpPeople', null); put('cmpBars', empty('📊', 'ベンチマークが未設定です', '「設定」シートで自分のIDとベンチマークのIDを入れると比較できます。')); ['cmpWeekly', 'cmpFollow', 'cmpMedian'].forEach(function (id) { put(id, null); }); put('cmp', null); return; }
+    put('cmpPeople', c.people.map(function (p) { return el('div', { class: 'person' + (p.own ? '' : ' b') }, [el('div', { class: 'pid', text: (p.own ? '自分・' : '') + '@' + p.id }), el('div', { class: 'pv num' }, [fmt(p.followers), el('small', { style: { fontSize: '12px', color: '#6A7572', marginLeft: '3px' }, text: '人' })]), el('div', { class: 'hint' }, ['フォロワー', isNum(p.growth) ? ' ' : '', isNum(p.growth) ? delta(p.growth) : null, isNum(p.growth) ? '（30日）' : ''])]); }));
+    $('cmpDays').textContent = c.days ? '直近' + c.days + '日の記事' : '全期間の記事';
+    put('cmpBars', hbars([['投稿ペース', '本/週', c.people.map(function (p) { return p.pace; }), '直近30日'], ['スキ中央値', '', c.people.map(function (p) { return p.median; })], ['24時間のスキ（中央値）', '', c.people.map(function (p) { return p.d1; }), '推定を含む'],
+      ['コメント中央値', '', c.people.map(function (p) { return p.comments; })], ['分析した記事数', '本', c.people.map(function (p) { return p.n; })]], c.people));
+    put('cmp', d2table(D.compare));
+  }
+  function drawCmpCharts() {
+    var c = D && D.cmp; if (!c) return;
+    var ser = function (k) { return c.weekly.series.map(function (s, i) { return { name: c.people[i].own ? '自分' : s.id, color: cmpColor(c.people[i], i), vals: s[k] }; }); };
+    if (!$('t-cmp').classList.contains('hidden')) {
+      barChart($('cmpWeekly'), c.weekly.labels, ser('posts'), { label: '週ごとの投稿数', emptyTitle: '直近13週の投稿がありません' });
+      var fr = c.followers || [], head = fr[0] || [], rows = fr.slice(1);
+      lineChart($('cmpFollow'), head.slice(1).map(function (id, j) {
+        var base = null; return { name: c.people[j] && c.people[j].own ? '自分' : id, color: cmpColor(c.people[j] || {}, j), pts: rows.map(function (r) { var v = r[j + 1]; if (!isNum(v)) return [r[0], null]; if (base === null) base = v; return [r[0], v - base]; }) };
+      }), { zero: true, label: 'フォロワーの増え方', emptyTitle: 'もう少しで線が出ます', emptyText: 'フォロワー数の記録が2日分以上たまると、自分とベンチマークの「増え方」をくらべられます。' });
+      lineChart($('cmpMedian'), ser('median').map(function (s) { return { name: s.name, color: s.color, pts: c.weekly.labels.map(function (l, i) { return [l, s.vals[i]]; }) }; }), { label: '週ごとのスキ中央値', legend: true, emptyTitle: 'まだ比べられません' });
+    }
+    if ($('cmpMiniChart') && !$('t-home').classList.contains('hidden')) barChart($('cmpMiniChart'), c.weekly.labels, ser('posts'), { h: 140, label: '週ごとの投稿数（直近13週）', emptyTitle: '直近13週の投稿がありません' });
+  }
+  function d2table(cmp) {
+    if (!cmp) return empty('📊', 'まだありません', '');
+    return el('table', {}, [el('tr', {}, cmp.header.map(function (h) { return el('th', { text: h }); })), cmp.rows.map(function (r) { return el('tr', {}, r.map(function (c, i) { return i ? el('td', { class: 'n', text: fmt(c) }) : el('td', { text: c }); })); })]);
+  }
+
+  /* ---------- 予定帳 ---------- */
+  var PLAN = { mode: 'month', sel: today, cur: today.slice(0, 7) + '-01' };
+  function dParse(s) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return Date.UTC(+m[1], +m[2] - 1, +m[3]); }
+  function dStr(t) { return new Date(t).toISOString().slice(0, 10); }
+  function addDays(s, n) { return dStr(dParse(s) + n * 864e5); }
+  function dow(s) { return new Date(dParse(s)).getUTCDay(); }
+  function addMonths(s, n) { var d = new Date(dParse(s)); return dStr(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1)); }
+  function itemsOn(date) {
+    var pubs = ((D && D.articles) || []).filter(function (r) { return r[2] === date; }).map(function (r) { return { kind: 'pub', title: r[1], url: r[3], likes: r[4] }; });
+    var plans = ((D && D.plans) || []).filter(function (p) { return p.date === date; }).map(function (p) { return { kind: 'plan', p: p }; });
+    return pubs.concat(plans);
+  }
+  var ST_CLS = { '下書き': 'st-draft', '予定': 'st-plan', '公開済み': 'st-done' };
+  function planChip(p) { return chip(p.status, { '下書き': '', '予定': 'wait', '公開済み': 'ok' }[p.status] || ''); }
+  function renderSlot() {
+    var s = D && D.slots;
+    put('planSlot', s && (s.weekday || s.hour) ? el('div', { class: 'slot' }, [el('div', { class: 'ic', text: '⭐' }), el('div', { class: 'body' }, [el('b', { text: 'スキが集まりやすい枠：' + [s.weekday, s.hour].filter(Boolean).join('・') }),
+      el('div', { class: 'hint', text: (s.days ? '直近' + s.days + '日' : 'これまで') + 'の' + fmt(s.n) + '本のうち、' + s.minN + '本以上ある曜日・時間帯で、スキの中央値がいちばん高いところ（' + [s.weekday ? s.weekday + ' ' + s.wdN + '本・中央値' + fmt(s.wdMedian) : '', s.hour ? s.hour + ' ' + s.hourN + '本・中央値' + fmt(s.hourMedian) : ''].filter(Boolean).join('／') + '）。日本時間・公開時刻で数えています。カレンダーでは緑の列です。' })]),
+      el('button', { class: 'mini g', type: 'button', onclick: function () { planEditor({ date: (s.next || {}).date || today, time: (s.next || {}).time || '', title: '', status: '予定', memo: '' }); } }, '次の枠に入れる')])
+      : el('div', { class: 'hint', text: '記事が増えると、スキが集まりやすい曜日・時間帯（5本以上、かつ分析した記事の1割以上ある中でいちばん高いところ）がここに出ます。' }));
+  }
+  function calCell(date, inMonth) {
+    var its = itemsOn(date), best = D && D.slots && D.slots.wd === dow(date), cls = 'cd' + (inMonth ? '' : ' out') + (best ? ' best' : '') + (date === today ? ' today' : '') + (date === PLAN.sel ? ' sel' : '');
+    return el('button', { type: 'button', class: cls, 'data-date': date, 'aria-label': mdw(date) + (its.length ? '・' + its.length + '件' : ''), onclick: function () { PLAN.sel = date; renderPlan(); } }, [el('span', { class: 'dn', text: +date.slice(8) }),
+      el('span', { class: 'dots' }, its.slice(0, 4).map(function (x) { return el('i', { class: x.kind === 'pub' ? 'pub' : ST_CLS[x.p.status] }); })),
+      el('span', { class: 'lbls' }, [its.slice(0, 2).map(function (x) { return el('span', { class: 'lb ' + (x.kind === 'pub' ? 'pub' : ST_CLS[x.p.status]), text: x.kind === 'pub' ? x.title : (x.p.time ? x.p.time + ' ' : '') + x.p.title }); }), its.length > 2 ? el('span', { class: 'lb more', text: '+' + (its.length - 2) }) : null])]);
+  }
+  function dayRow(x) {
+    if (x.kind === 'pub') return el('a', { class: 'item', href: x.url }, [el('span', { class: 'pdot pub' }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: x.title }), el('div', { class: 'mt' }, [chip('公開した記事', 'ok'), isNum(x.likes) ? el('span', { text: '♥ ' + fmt(x.likes) }) : null])]), chev()]);
+    return el('button', { type: 'button', class: 'item plan', onclick: function () { planEditor(x.p); } }, [el('span', { class: 'pdot ' + ST_CLS[x.p.status] }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: x.p.title }), el('div', { class: 'mt' }, [planChip(x.p), x.p.time ? el('span', { text: x.p.time }) : null, x.p.memo ? el('span', { text: String(x.p.memo).slice(0, 30) }) : null])]), el('span', { class: 'edit', text: '編集' })]);
+  }
+  function renderPlan() {
+    if (!D) return;
+    renderSlot();
+    var wdh = WD.map(function (w, i) { return el('span', { class: 'wh' + (D.slots && D.slots.wd === i ? ' best' : '') + (i === 0 ? ' sun' : i === 6 ? ' sat' : ''), text: w }); });
+    if (PLAN.mode === 'month') {
+      var first = PLAN.cur, start = addDays(first, -dow(first)), cells = [], mo = first.slice(0, 7);
+      for (var i = 0; i < 42; i++) { var d = addDays(start, i); if (i >= 35 && d.slice(0, 7) !== mo) break; cells.push(calCell(d, d.slice(0, 7) === mo)); }
+      $('calTitle').textContent = (+first.slice(0, 4)) + '年' + (+first.slice(5, 7)) + '月';
+      put('cal', el('div', { class: 'cal' }, wdh.concat(cells)));
+    } else {
+      var ws = addDays(PLAN.sel, -dow(PLAN.sel)), rows = [];
+      for (var j = 0; j < 7; j++) {
+        (function (d) {
+          var its = itemsOn(d), best = D.slots && D.slots.wd === dow(d);
+          rows.push(el('div', { class: 'wrow' + (best ? ' best' : '') + (d === today ? ' today' : '') }, [el('button', { type: 'button', class: 'wd', onclick: function () { PLAN.sel = d; renderPlan(); } }, [el('b', { text: +d.slice(8) }), el('span', { text: WD[dow(d)] })]),
+            el('div', { class: 'wi' }, [its.length ? its.map(dayRow) : el('div', { class: 'hint', text: best ? '⭐ おすすめの曜日' + (D.slots.hour ? '（' + D.slots.hour + '）' : '') : '予定なし' })]),
+            el('button', { type: 'button', class: 'mini add', 'aria-label': mdw(d) + 'に予定を入れる', onclick: function () { planEditor({ date: d, time: best && D.slots.next ? D.slots.next.time : '', title: '', status: '予定', memo: '' }); } }, '＋')]));
+        })(addDays(ws, j));
+      }
+      $('calTitle').textContent = md(ws) + ' 〜 ' + md(addDays(ws, 6));
+      put('cal', el('div', { class: 'week' }, rows));
+    }
+    document.querySelectorAll('#calMode button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === PLAN.mode); });
+    $('dayTitle').textContent = mdw(PLAN.sel) + (PLAN.sel === today ? '（今日）' : '');
+    var its = itemsOn(PLAN.sel);
+    put('dayList', its.length ? its.map(dayRow) : empty('🗓', 'この日の予定はありません', D.slots && D.slots.wd === dow(PLAN.sel) ? '⭐ スキが集まりやすい曜日です。' : ''));
+    $('dayCard').classList.toggle('hidden', PLAN.mode === 'week');
+    var up = (D.plans || []).filter(function (p) { return p.date >= today && p.status !== '公開済み'; }).slice(0, 20);
+    put('upcoming', up.length ? up.map(function (p) { return dayRow({ kind: 'plan', p: p }); }) : empty('✍️', 'これからの予定はまだありません', '「＋ 予定を入れる」か、ホームの「次の記事案」から入れられます。'));
+    var n = (D.plans || []).length; $('planMeta').textContent = n ? '「投稿予定」シートに ' + n + '件' : '';
+  }
+  $('calPrev').onclick = function () { if (PLAN.mode === 'month') PLAN.cur = addMonths(PLAN.cur, -1); else PLAN.sel = addDays(PLAN.sel, -7); renderPlan(); };
+  $('calNext').onclick = function () { if (PLAN.mode === 'month') PLAN.cur = addMonths(PLAN.cur, 1); else PLAN.sel = addDays(PLAN.sel, 7); renderPlan(); };
+  $('calToday').onclick = function () { PLAN.sel = today; PLAN.cur = today.slice(0, 7) + '-01'; renderPlan(); };
+  document.querySelectorAll('#calMode button').forEach(function (b) { b.onclick = function () { PLAN.mode = b.getAttribute('data-m'); if (PLAN.mode === 'month') PLAN.cur = PLAN.sel.slice(0, 7) + '-01'; renderPlan(); }; });
+  $('btnAddDay').onclick = function () { var best = D && D.slots && D.slots.wd === dow(PLAN.sel); planEditor({ date: PLAN.sel, time: best && D.slots.next ? D.slots.next.time : '', title: '', status: '予定', memo: '' }); };
+  $('btnAddPlan').onclick = function () { var s = (D && D.slots && D.slots.next) || {}; planEditor({ date: s.date || today, time: s.time || '', title: '', status: '予定', memo: '' }); };
+  function planEditor(p) {
+    var st = p.status || '予定';
+    var date = el('input', { id: 'plDate', type: 'date' }), time = el('input', { id: 'plTime', type: 'time' }), title = el('input', { id: 'plTitle', type: 'text', maxlength: 120, placeholder: '例：【保存版】Excelの集計を10分で終わらせる手順｜業務改善' }), memo = el('textarea', { id: 'plMemo', maxlength: 500, placeholder: 'メモ（見出し・ネタ元など）', style: { minHeight: '90px' } });
+    date.value = p.date || today; time.value = p.time || ''; title.value = p.title || ''; memo.value = p.memo || '';
+    var seg = el('div', { class: 'seg', id: 'plStatus' }, ['下書き', '予定', '公開済み'].map(function (s) { return el('button', { type: 'button', class: s === st ? 'on' : null, 'data-v': s, onclick: function () { st = s; seg.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === s); }); } }, s); }));
+    var hint = D && D.slots && (D.slots.weekday || D.slots.hour) ? el('div', { class: 'hint', text: '⭐ おすすめ: ' + [D.slots.weekday, D.slots.hour].filter(Boolean).join('・') }) : null;
+    var save = el('button', { class: 'btn', type: 'button', id: 'plSave' }, p.id ? '保存する' : '予定帳に入れる'), del = p.id ? el('button', { class: 'btn danger2', type: 'button', id: 'plDel' }, 'この予定を消す') : null;
+    save.onclick = function () {
+      save.disabled = true; status('plStatusMsg', '保存しています…');
+      call('naWebSavePlan', [{ id: p.id || '', date: date.value, time: time.value, title: title.value, status: st, memo: memo.value }], function (r) {
+        save.disabled = false; if (!r.ok) { status('plStatusMsg', r.message, 'err'); return; }
+        D.plans = r.plans; PLAN.sel = r.item.date; PLAN.cur = r.item.date.slice(0, 7) + '-01'; renderPlan(); closeSheet(); toast(r.message);
+      }, 'plStatusMsg');
+    };
+    if (del) del.onclick = function () {
+      if (!del.getAttribute('data-sure')) { del.setAttribute('data-sure', '1'); del.textContent = 'もう一度押すと消します'; return; }
+      del.disabled = true;
+      call('naWebDeletePlan', [p.id], function (r) { if (!r.ok) { del.disabled = false; status('plStatusMsg', r.message, 'err'); return; } D.plans = r.plans; renderPlan(); closeSheet(); toast(r.message); }, 'plStatusMsg');
+    };
+    openSheet(p.id ? '予定を編集' : '予定を入れる', [el('div', { class: 'row2' }, [el('div', {}, [el('label', { for: 'plDate', text: '日付' }), date]), el('div', {}, [el('label', { for: 'plTime', text: '時刻（任意）' }), time])]), hint,
+      el('label', { for: 'plTitle', text: 'タイトル・アイデア' }), title, el('label', { text: '状態' }), seg, el('label', { for: 'plMemo', text: 'メモ' }), memo,
+      save, del, el('div', { class: 'status', id: 'plStatusMsg' }),
+      el('div', { class: 'privacy' }, ['投稿は自動ではしません。書けたら ', link('note で新しく書く ↗', 'https://note.com/notes/new'), ' から自分で投稿して、ここを「公開済み」にしてください（取得すると、公開した記事はカレンダーに自動で出ます）。'])]);
+  }
+
+  /* ---------- その他（分析のくわしい表・記録・AI週報） ---------- */
+  function td(v, cls) { return el('td', { class: cls || (isNum(v) ? 'n' : null) }, typeof v === 'object' && v !== null ? v : (isNum(v) ? fmt(v) : (v === null || v === undefined || v === '' ? '—' : String(v)))); }
+  function tbl(head, rows, fn) { return rows && rows.length ? el('table', {}, [el('tr', {}, head.map(function (h) { return el('th', { text: h }); })), rows.map(function (r) { return el('tr', {}, fn(r)); })]) : el('div', { class: 'hint', text: 'まだありません。' }); }
+  function tlink(t, u) { return el('td', {}, link(String(t).slice(0, 40), u)); }
+  function sgn(v) { return el('span', { class: v > 0 ? 'up' : v < 0 ? 'down' : null, text: (v > 0 ? '+' : '') + fmt(v) }); }
+  function bars(rows) {
+    var max = 0, best = -1, bi = -1;
+    rows.forEach(function (r, i) { if (r[2] !== null) { max = Math.max(max, r[2]); if (r[1] >= 3 && r[2] > best) { best = r[2]; bi = i; } } });
+    return [rows.map(function (r, i) { var w = (r[2] && max) ? Math.round(r[2] / max * 100) : 0; return el('div', { class: 'bar' }, [el('span', { class: 'lb', text: r[0] }), el('span', { class: 'tr' }, el('span', { class: 'fl' + (i === bi ? ' best' : ''), style: { display: 'block', width: w + '%' } })), el('span', { class: 'vl', text: (r[2] === null ? '—' : fmt(r[2])) + '（' + r[1] + '本）' })]); }),
+      el('div', { class: 'hint', text: '濃い緑＝3本以上の中でいちばん高いところ' })];
+  }
+  function artTable(rows) { return tbl(['スキ', 'コメ', '公開日', 'タイトル'], rows, function (r) { return [td(r[0]), td(r[1]), td(r[2]), tlink(r[7], r[8])]; }); }
+  function renderMore(d) {
+    $('lastFetch').textContent = d.lastLog ? '最後の取得: ' + mdt(d.lastLog.start) + '（' + d.lastLog.result + '）' : 'まだ取得していません。';
+    put('notes', (d.notes || []).map(function (n) { return el('li', { text: n }); }));
+    put('best', artTable(d.best)); put('worst', artTable(d.worst));
+    var vs = d.velocitySummary || {};
+    $('velSum').textContent = vs.n ? '24時間で中央値 ' + vs.d1Median + '、7日で中央値 ' + (vs.d7Median === null ? '—' : vs.d7Median) + '（' + vs.n + '本）' : '記事推移がたまると表示されます（公開後の記事を毎日記録）。';
+    put('vel', d.velocity && d.velocity.length ? tbl(['公開日', '24時間', '7日', '最新', 'タイトル'], d.velocity, function (v) { return [td(v[0]), td(v[1], 'n'), td(v[2], 'n'), td(v[3]), td(String(v[5]).slice(0, 40))]; }) : null);
+    put('wd', bars(d.weekday || [])); put('hr', bars(d.hour || []));
+    put('tp', tbl(['型', '本数', '中央値', 'それ以外', '差'], d.titlePatterns || [], function (p) { return [td(p[0] + (p[1] < 5 ? '（参考）' : '')), td(p[1]), td(p[2]), td(p[3]), el('td', { class: 'n' }, sgn(p[4]))]; }));
+    put('growth', tbl(['増えた', '今', '公開日', 'タイトル'], d.growth, function (r) { return [el('td', { class: 'n up', text: '+' + fmt(r[0]) }), td(r[2]), td(r[3]), tlink(r[4], r[5])]; }));
+    put('vb', tbl(['24時間', '本数', '7日', '最新'], (d.velocityBuckets || []).filter(function (r) { return r[1] > 0; }), function (r) { return [td(r[0]), td(r[1]), td(r[2]), td(r[3])]; }));
+    var per = function (r) { return [td(r[0]), td(r[1]), td(r[2]), td(r[3]), td(r[4]), el('td', { class: 'n' }, sgn(r[5]))]; };
+    put('weekly', tbl(['週', '投稿', 'スキ計', '中央値', 'フォロワー', '増減'], d.weekly, per));
+    put('monthly', tbl(['月', '投稿', 'スキ計', '中央値', 'フォロワー', '増減'], d.monthly, per));
+    put('pvTable', d.pv && d.pv.length ? tbl(['PV', 'スキ率', '開封率', '4象限', 'タイトル'], d.pv, function (p) { return [td(p[1]), td(p[3] + '%', 'n'), td(p[5] === '' ? '—' : p[5] + '%', 'n'), td(p[6] || '—'), tlink(p[8], p[9])]; })
+      : el('div', { class: 'hint', text: '「記録」で PV（全期間）を入れると、スキ率（スキ÷PV）・開封率（PV÷インプレッション）・4象限が出ます。' }));
+    put('decay', (d.pvDecay || []).some(function (r) { return r[1] > 0; }) ? tbl(['公開から', '記事数', '1日あたりPV'], d.pvDecay, function (r) { return [td(r[0]), td(r[1]), td(r[2])]; }) : el('div', { class: 'hint', text: 'まだありません（同じ記事の全期間PVを2回以上記録すると出ます）。' }));
+    put('pvKey', (d.pvArticles || []).length ? d.pvArticles.map(function (a) { return el('option', { value: a[0], text: a[1] }); }) : el('option', { value: '', text: '（記事がまだありません）' }));
+    put('aiBox', d.ai ? [el('b', { text: mdt(d.ai.at) + '（' + d.ai.model + '）' }), '\n\n' + d.ai.summary + '\n\n', el('b', { text: '気づき' }), '\n' + d.ai.findings + '\n\n', el('b', { text: '次の記事案' }), '\n' + d.ai.ideas + '\n\n', el('b', { text: '来週ためすこと' }), '\n' + d.ai.experiments]
+      : el('span', { class: 'hint', text: 'まだありません。' + (d.hasKey ? '' : aiName() + ' のAPIキーを、スプレッドシートのメニュー「AIのAPIキーを登録」から登録してください。') }));
+    $('btnAi').classList.toggle('hidden', !d.hasKey);
+    document.querySelectorAll('.aiName').forEach(function (x) { x.textContent = '（' + aiName() + '）'; });
+  }
+
+  /* ---------- 全体 ---------- */
+  function drawCharts() {
+    if (!D || !D.ok || !D.target) return;
+    if (!$('t-home').classList.contains('hidden')) trendChart($('trend'), (D.home || {}).trend || []);
+    drawCmpCharts();
+    if (!$('t-more').classList.contains('hidden') && !$('s-ana').classList.contains('hidden')) {
+      lineChart($('chartFollowers'), [{ name: 'フォロワー', color: '#2FB9A2', pts: D.followerSeries || [] }], { area: true, label: 'フォロワー推移', emptyText: 'データが2日分以上たまるとグラフになります（毎日の自動取得をオンにしてください）。' });
+      lineChart($('chartLikes'), [{ name: 'スキ合計', color: '#F0627A', pts: D.likeSeries || [] }], { area: true, label: 'スキ合計の推移', emptyText: 'データが2日分以上たまるとグラフになります。' });
+    }
+  }
+  var rT = null; window.addEventListener('resize', function () { clearTimeout(rT); rT = setTimeout(drawCharts, 150); });
+  function render(d) {
+    D = d; $('skel').classList.add('hidden');
+    if (!d.ok) { $('setup').classList.remove('hidden'); $('setup').textContent = d.message; $('sub').textContent = 'エラー'; return; }
+    D.drafts = d.drafts || { reply: {}, thanks: {}, ideas: null };
+    $('sub').textContent = 'v' + d.version + '｜' + (d.own ? '@' + d.own : '自分のID: 未設定') + (d.bench.length ? '｜比較: ' + d.bench.join(', ') : '') + '｜' + (d.source === 'RSS' ? 'RSS' : d.source === 'GitHub' ? 'GitHub/Colab' : '公開JSON');
+    if (d.setupMessage) { $('setup').classList.remove('hidden'); $('setup').textContent = '⚠ ' + d.setupMessage; } else $('setup').classList.add('hidden');
+    renderSafety(d); setUsage(d.aiUsage);
+    if (!d.target) { $('who').textContent = 'ようこそ'; put('kpis', empty('👋', '「設定」シートでIDを入れてください', '自分の note のID（note.com/〇〇 の〇〇）を入れて「今すぐ取得する」を押すと、ここに数字が並びます。')); renderMore(d); renderPlan(); return; }
+    $('who').textContent = d.profile && d.profile.name ? d.profile.name : 'ホーム';
+    $('homeMeta').textContent = mdt(d.now) + ' 更新';
+    renderHome(d); renderArtSort(); renderArticles(); renderFans(); renderInsights(); renderCmp(); renderPlan(); renderMore(d);
+    drawCharts();
+  }
+  function load() { call('naGetDashboard', [], render); }
+  function runFetch() {
+    if (D && D.source === 'GitHub') return runGhFetch();
+    var b1 = $('btnFetch'), b2 = $('btnFetchTop'); b1.disabled = b2.disabled = true; b2.classList.add('spin');
+    status('fetchStatus', 'note から取得しています…（記事が多いと数分かかります）'); toast('note から取得しています…（数十秒〜数分）');
+    call('naWebRunFetch', [], function (r) { b1.disabled = b2.disabled = false; b2.classList.remove('spin'); status('fetchStatus', r.message, r.ok ? 'ok' : 'err'); toast(r.message); load(); }, 'fetchStatus');
+  }
+  // GitHub 取得（v1.4.1）：ボタンで GitHub Actions を動かし、終わるまで状態を見に行く。リンクは github.com だけ
+  function ghLink(url, text) {
+    if (!/^https:\/\/github\.com\/[A-Za-z0-9_\-\/.]*$/.test(String(url || ''))) return null;
+    var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = text; a.style.marginLeft = '6px'; return a;
+  }
+  function ghStatus(msg, kind, url, label) { status('fetchStatus', msg, kind); var a = ghLink(url, label || 'GitHub で見る ↗'); if (a) $('fetchStatus').appendChild(a); }
+  var GH = { timer: null, tries: 0 };
+  function runGhFetch() {
+    var b1 = $('btnFetch'), b2 = $('btnFetchTop'); b1.disabled = b2.disabled = true; b2.classList.add('spin');
+    var done = function () { b1.disabled = b2.disabled = false; b2.classList.remove('spin'); };
+    status('fetchStatus', 'GitHub に取得をお願いしています…'); toast('GitHub に取得をお願いしています…');
+    call('naWebGhRun', [], function (r) {
+      if (!r.ok) { done(); ghStatus(r.message, r.needToken ? null : 'err', r.actionsUrl, r.needToken ? 'GitHub で実行する ↗' : null); toast(r.message); return; }
+      ghStatus(r.message, 'ok', r.run && r.run.url); toast(r.message);
+      clearTimeout(GH.timer); GH.tries = 0; pollGh(r.beforeId || null, done, r.already ? r.run.id : null);
+    }, 'fetchStatus');
+  }
+  function pollGh(beforeId, done, knownId) {
+    GH.timer = setTimeout(function () {
+      GH.tries++;
+      call('naWebGhStatus', [beforeId], function (r) {
+        var run = r.ok && r.run && (r.isNew || knownId) ? r.run : null;
+        if (!r.ok) { done(); ghStatus(r.message, 'err'); return; }
+        if (!run) { if (GH.tries < 6) return pollGh(beforeId, done, knownId); done(); ghStatus('GitHub の実行がまだ見つかりません。少し待ってから GitHub の画面で確認してください。', 'err', D && D.gh && D.gh.actionsUrl); return; }
+        if (run.status !== 'completed') { ghStatus('GitHub：' + run.label + '（' + run.startedJp + ' 開始）。終わると自動で画面を更新します。', null, run.url); if (GH.tries < 60) return pollGh(beforeId, done, run.id); done(); return; }
+        done();
+        if (run.conclusion === 'success') { ghStatus('GitHub の取得が終わりました（' + run.startedJp + ' 開始）。画面を更新しました。', 'ok', run.url); toast('取得が終わりました'); load(); }
+        else { ghStatus('GitHub の取得が' + run.label + 'でした。くわしくは GitHub の画面で確認できます。', 'err', run.url); toast('GitHub の取得が' + run.label + 'でした'); }
+      }, 'fetchStatus');
+    }, GH.tries === 0 ? 8000 : 20000);
+  }
+  $('btnFetch').onclick = runFetch; $('btnFetchTop').onclick = runFetch;
+  $('btnPv').onclick = function () {
+    call('naWebAddPv', [{ key: $('pvKey').value, period: $('pvPeriod').value, date: $('pvDate').value, pv: $('pvNum').value, imp: $('pvImp').value }], function (r) { status('pvStatus', r.message, r.ok ? 'ok' : 'err'); if (r.ok) { $('pvNum').value = ''; $('pvImp').value = ''; } }, 'pvStatus');
+  };
+  $('btnPreview').onclick = function () {
+    call('naWebPreviewPv', [$('pasteText').value], function (r) {
+      if (!r.ok) { status('pasteStatus', r.message, 'err'); return; }
+      if (!r.rows.length) { status('pasteStatus', '記事の行を見つけられませんでした。「タイトル」と数字が並んだ部分をコピーしてください。', 'err'); $('btnSavePaste').classList.add('hidden'); return; }
+      put('pastePreview', tbl(['タイトル', 'PV', 'スキ', '一致'], r.rows, function (x) { return [td(String(x.matchedTitle || x.title).slice(0, 36)), td(x.pv), td(x.likes), td(x.key ? '✅' : (x.ok ? '❔' : '❌'))]; }));
+      status('pasteStatus', r.rows.length + '行を読み取りました（記事と一致 ' + r.matched + '／不一致 ' + r.unmatched + '）。数字の列が正しいか確認して保存してください。', 'ok');
+      $('btnSavePaste').classList.remove('hidden');
+    }, 'pasteStatus');
+  };
+  $('btnSavePaste').onclick = function () {
+    call('naWebSavePvText', [$('pasteText').value, $('pastePeriod').value, $('pasteDate').value], function (r) { status('pasteStatus', r.message, r.ok ? 'ok' : 'err'); if (r.ok) { $('btnSavePaste').classList.add('hidden'); $('pasteText').value = ''; put('pastePreview', null); } }, 'pasteStatus');
+  };
+  $('btnFw').onclick = function () { call('naWebAddFollowers', [$('fwNum').value], function (r) { status('fwStatus', r.message, r.ok ? 'ok' : 'err'); if (r.ok) load(); }, 'fwStatus'); };
+  $('btnAi').onclick = function () {
+    this.disabled = true; status('aiStatus', 'AIが週報を作っています…（20〜60秒）'); var b = this;
+    call('naWebRunInsight', [], function (r) { b.disabled = false; status('aiStatus', r.ok ? 'できました（' + r.model + '）' : r.message, r.ok ? 'ok' : 'err'); if (r.ok) load(); }, 'aiStatus');
+  };
+  load();
+</script>
+</body>
+</html>
