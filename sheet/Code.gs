@@ -1,3 +1,5 @@
+// note分析キット  作者：TAKU（https://github.com/nooknest2025-tech/note-analytics-kit）
+// 個人で無料で使うのは自由です。販売・作者名の削除・無断の再配布は禁止（くわしくは LICENSE）。
 /* ===== Gemini 共通コード（資料の型ワークベンチ v1.0.0 から自動で取り込み。ここは直接編集しない） ===== */
 
 var SW_DEFAULT_MODEL = 'gemini-3.8-flash';          // 2026-10 時点: 無料枠あり（公式 pricing ページで確認）
