@@ -1677,7 +1677,7 @@ var NA_MAX_BENCH = 5;
 var NA_DASH_MAX_PAGES = 50;   // PV自動取得：stats/pv（1ページ＝10記事）のページ上限
 var NA_GQL_MAX_PAGES = 10;    // PV自動取得：新ダッシュボード（1ページ＝50記事）のページ上限
 
-var NA_PV_DAY_TOTAL = '日次合計', NA_IMP_BACKFILL_MAX = 120;   // v1.8.0：アカウント全体の日ごとの合計（記事キーは空）。「その日を確認した」印も兼ねる
+var NA_PV_DAY_TOTAL = '日次合計', NA_IMP_BACKFILL_MAX = 7300;   // v1.8.2：120→7300（約20年＝上限なし。最初の記事の公開日まで1回で）   // v1.8.0：アカウント全体の日ごとの合計（記事キーは空）。「その日を確認した」印も兼ねる
 var NA_SETTINGS = [
   ['自分のクリエイターID', '', 'note.com/〇〇 の〇〇の部分（URLを貼ってもOK）。空欄にすると、ベンチマークだけを分析します'],
   ['ベンチマークのクリエイターID', '', '比べたい人のID。カンマ区切りで最大' + NA_MAX_BENCH + '人。取得したデータは自分の分析用です。公開・転載しないでください'],
@@ -1709,7 +1709,7 @@ var NA_SETTINGS = [
   ['PVの自動取得（自分のCookie）', 'いいえ', '「はい」にすると、メニュー「noteのCookieを登録」で登録した自分のCookie（取得方法が GitHub のときは、GitHub の Secrets「NOTE_SESSION」に入れた Cookie。シートには登録しません）で、ログイン中のダッシュボードの数字（記事ごとのビュー・スキ・コメント）を1日1回だけ取得して「PV入力」に記録します。READMEの「PVの自動取得」の注意を必ず読んでから'],
   ['インプレッション等も取る（新ダッシュボード）', 'はい', '日ごと・記事ごとのインプレッション・ページビュー（スキ・コメント・売上も取れれば）を取ります。毎日の前日分に加えて、まだ記録していない過去の日も少しずつさかのぼります（下の「さかのぼる日数」）。graphql.note.com には Cookie ではなく、Cookie から発行される30分ほどの一時トークンを送ります。いやなら「いいえ」'],
   ['PV自動取得：最大ページ数', 30, '旧集計（stats/pv）は1ページ＝10記事（最大' + NA_DASH_MAX_PAGES + '）。新ダッシュボードは1ページ＝50記事（最大' + NA_GQL_MAX_PAGES + '）。間隔は3秒以上あけます'],
-  ['インプレッション：1回でさかのぼる日数', 30, 'まだ記録していない過去の日を、1回の取得で何日ぶん取るか（0〜' + NA_IMP_BACKFILL_MAX + '。0 なら前日分だけ）。毎回の取得で少しずつ、最初の記事の公開日までさかのぼります（進み具合はホームに「さかのぼり済み」と出ます）。1日ぶん＝ほぼ2〜3回のアクセス（3秒以上あけます）。最初の記事の公開日より前は取りません'],
+  ['インプレッション：1回でさかのぼる日数', 'すべて', 'まだ記録していない過去の日（PV・インプレッション・スキ・コメントの日ごとの数）を、1回の取得で何日ぶん取るか。「すべて」（空・以前の既定の30も同じ）なら最初の記事の公開日まで1回で取ります。少なくしたいときは日数（0〜' + NA_IMP_BACKFILL_MAX + '。0 なら前日分だけ）。GitHub の取得は4時間で止めて、取れた分を送り、のこりは次回に取ります（シートだけで取得するときは1回200アクセスまで）。進み具合はホームに「さかのぼり済み」と出ます。1日ぶん＝ほぼ1〜3回のアクセス（3秒以上あけます）'],
   ['共有中でもCookie取得を実行する', 'いいえ', 'このスプレッドシートを自分以外と共有しているときは、安全のため Cookie を使った取得をしません。「はい」は自己責任での上書きです（おすすめしません）'],
   ['今月の目標：PV', '', 'ダッシュボードのホーム「今月の目標」から入れられます（ここに直接書いてもOK）。空欄なら目標なし。毎月同じ目標を使います'],
   ['今月の目標：スキ', '', '今月スキされた数の目標（自分のスキは数えません）。空欄なら目標なし'],
@@ -1892,7 +1892,7 @@ function naGetSettings_() {
     impBackfill: naImpBackfillSetting_(g('インプレッション：1回でさかのぼる日数'))
   };
 }
-function naImpBackfillSetting_(v) { if (v === '' || v === null || v === undefined) return 30; var n = parseInt(v, 10); return isNaN(n) ? 30 : Math.max(0, Math.min(NA_IMP_BACKFILL_MAX, n)); }
+function naImpBackfillSetting_(v) { if (v === '' || v === null || v === undefined) return NA_IMP_BACKFILL_MAX; var n = parseInt(v, 10); n = isNaN(n) ? NA_IMP_BACKFILL_MAX : Math.max(0, Math.min(NA_IMP_BACKFILL_MAX, n)); return n === 30 ? NA_IMP_BACKFILL_MAX : n; }   // v1.8.2：空・「すべて」・以前の既定30 → 上限なし（最初の記事の公開日まで）
 function naCheckFetchAllowed_(st) {
   if (!st.own && !st.bench.length) return '「設定」シートに、自分のクリエイターIDか、ベンチマークのIDを入れてください。';
   if (st.source === 'GitHub') return '';
@@ -2921,6 +2921,7 @@ function naDashTask_(t, job, ctx) {
       var chk = naImpChecked_(), floor = '';
       Object.keys(ctx.store.map).forEach(function (k) { var a = ctx.store.map[k]; if (a.creator === st.own && a.publishMs) { var d = naJst(a.publishMs).date; if (!floor || d < floor) floor = d; } });
       t.dates = st.impBackfill ? naImpPlanDates(chk.map, t.date, floor, st.impBackfill) : naImpPlanDates(chk.map, t.date, t.date, 1);
+      t.budget = Math.max(NA_IMP_REQ_BUDGET, Math.min(200, (st.impBackfill || 0) * 3));   // v1.8.2：さかのぼる日数に合わせる（シートで取得するときは1回300アクセスの中で、ほかの取得の分を残す）
       t.di = 0; t.proven = chk.proven; t.reqStart = job.requests; t.done = []; t.busy = [];
       if (!t.dates.length) { job.tasks.shift(); return; }
       t.date = t.dates[0];
@@ -2973,7 +2974,7 @@ function naDashTask_(t, job, ctx) {
 var NA_IMP_REQ_BUDGET = 90;
 function naImpNextDate_(t, job, D) {
   t.di++; t.page = 1; t.after = null; t.minimal = t.minimal || false;
-  if (t.di < t.dates.length && job.requests - t.reqStart >= NA_IMP_REQ_BUDGET) { D.notes.push('インプレッション：のこり ' + (t.dates.length - t.di) + ' 日分は次回に取ります（1回のアクセス回数を抑えるため）'); t.di = t.dates.length; }
+  if (t.di < t.dates.length && job.requests - t.reqStart >= (t.budget || NA_IMP_REQ_BUDGET)) { D.notes.push('インプレッション：のこり ' + (t.dates.length - t.di) + ' 日分は次回に取ります（1回のアクセス回数を抑えるため）'); t.di = t.dates.length; }
   if (t.di >= t.dates.length) { naImpFinish_(t, D); job.tasks.shift(); return; }
   t.date = t.dates[t.di];
 }

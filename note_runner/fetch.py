@@ -2,6 +2,7 @@
 記事一覧・フォロワー → ベンチマーク → ダッシュボード（Cookie があるときだけ・1日1回）→ 本文の文字数 → 誰からのスキ → コメントした人（最後）。
 403/429 が返ったら、その時点で note へのアクセスをやめ、取れた分と理由を記録する。"""
 import json
+import time
 
 from . import core
 from .httpc import Stop
@@ -40,7 +41,8 @@ def plan_settings(state, env_own="", env_bench=None):
         "lastDashDate": (state or {}).get("lastDashDate") or "",
         # インプレッションのさかのぼり（v1.4.0）：シートが v1.8.0 以上（state に impDates がある）ときだけ。古いシートは前日分だけ（今まで通り）
         "impDates": set(x for x in ((state or {}).get("impDates") or []) if isinstance(x, str)) if "impDates" in (state or {}) else None,
-        "impBackfill": _int(st.get("impBackfill") if st.get("impBackfill") is not None else 30, 30, 0, 120),
+        # v1.4.5：既定は120日（以前の既定30は120として扱う）。最初の記事の公開日まで、毎回の取得で120日ずつさかのぼる
+        "impBackfill": _imp_days(st.get("impBackfill")),
         "impProven": bool((state or {}).get("impProven")),
         "sheetVersion": str((state or {}).get("version") or "")[:20],
         "known": {r[0]: {"likes": r[1], "likersAt": r[2] or 0, "hasText": bool(r[3]), "lastLike": r[4] or 0, "publishMs": r[5],
@@ -260,8 +262,30 @@ LIKER_OLD_CAP = 200       # v1.4.3 までの打ち切り（1記事5ページ）�
 LIKER_REQ_BUDGET = 120    # スキした人に使うアクセス回数の上限（1回の実行あたり。足りない分は次回に続きから）
 COMMENTER_OLD_CAP = 30    # v1.4.3 までの打ち切り（1記事3ページ＝コメント30件）
 COMMENTER_MAX_PAGES = 30  # コメントは1記事30ページまで（ふつうは1〜2ページ）
+IMP_DAYS_DEFAULT = 7300    # v1.4.5：1回でさかのぼる日数の既定＝上限なし（最初の記事の公開日まで。以前は30）
+IMP_BUDGET_MAX = 7300 * 3  # さかのぼりのアクセス回数の上限（1日分＝1〜3回。実際は時間の上限で止まる）
 IMP_REQ_BUDGET = 90        # さかのぼりに使うアクセス回数の上限（1回の実行あたり。あとの取得のぶんを残す）
 IMP_REQ_RESERVE = 120      # 実行全体の上限からこれだけは残す
+
+
+def _imp_days(v):
+    """1回でさかのぼる日数：空・数字でない・30（以前の既定）なら上限なし（最初の記事の公開日まで）。0 はさかのぼらない"""
+    try:
+        n = int(str(v).strip())
+    except (TypeError, ValueError):
+        return IMP_DAYS_DEFAULT
+    n = max(0, min(core.IMP_MAX_BACK_DAYS, n))
+    return IMP_DAYS_DEFAULT if n == 30 else n
+
+
+def imp_budget(days):
+    """さかのぼりに使うアクセス回数：1日分＝1〜3回"""
+    return max(IMP_REQ_BUDGET, min(IMP_BUDGET_MAX, days * 3))
+
+
+def time_up(P):
+    """GitHub の実行時間の上限より前に、さかのぼりを止める（取れた分は送る。のこりは次回）"""
+    return bool(P.get("deadline")) and P.get("clock", time.time)() >= P["deadline"]
 
 
 def imp_floor(P, arts):
@@ -314,8 +338,11 @@ def _gql(http, P, now_ms, out, arts):
         pending, skipped_busy = [], []
         for di, date in enumerate(dates):
             used = http.requests - start_req
-            if di > 0 and (used >= P.get("impBudget", IMP_REQ_BUDGET) or http.requests >= http.max_requests - IMP_REQ_RESERVE):
+            if di > 0 and (used >= P.get("impBudget", imp_budget(P.get("impBackfill") or 0)) or http.requests >= http.max_requests - IMP_REQ_RESERVE):
                 D["notes"].append(f"インプレッション：のこり {len(dates) - di} 日分は次回に取ります（1回のアクセス回数を抑えるため）")
+                break
+            if di > 0 and time_up(P):   # v1.4.5：実行時間の上限が近い → ここまでの分を送って、のこりは次回
+                D["notes"].append(f"インプレッション：のこり {len(dates) - di} 日分は次回に取ります（実行時間の上限が近いため）")
                 break
             rows, after, total, ok = [], None, None, True
             for page in range(1, 11):

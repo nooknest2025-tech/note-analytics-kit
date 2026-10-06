@@ -15,7 +15,6 @@ from .sender import Sender, wire_len
 MAX_CHUNK = 1_000_000   # 1回に送る大きさ。実際に送る封筒の JSON（日本語は \\uXXXX にエスケープ後）の文字数で数える
 RECEIVER_MAX = 1_500_000   # 受け取り側（Apps Script）の上限：封筒の JSON 全体の文字数
 # 1回に送る件数の上限（受け取り側の NA_RX_LIMITS 以下。pv は書き込みが時間切れにならないよう少なめ）。v1.4.2：さかのぼりで pv が 2000 件を超えて止まったため
-IMP_MANUAL_BUDGET = 360
 COMMENTERS_FULL_EXTRA = 300   # コメントの取り直し（手動）の分だけ、アクセスの上限を足す   # 手動でさかのぼる日数を指定したときの、さかのぼりのアクセス回数の上限（3秒間隔で約18分）
 ITEM_MAX = {"articles": 3000, "snaps": 4000, "likers": 8000, "commenters": 3000, "pv": 1000}
 
@@ -138,13 +137,17 @@ def run(env, argv=None, source="github", log_stream=None, opener=None, sender=No
         log("コメントした人：コメントが30件を超える記事は、この実行で最初のページから取り直します（手動の指定）")
     ov = str(env.get("NA_IMP_BACKFILL") or "").strip()
     if ov.isdigit():
-        P["impBackfill"] = max(0, min(120, int(ov)))
-        P["impBudget"] = max(fetch.IMP_REQ_BUDGET, min(IMP_MANUAL_BUDGET, P["impBackfill"] * 3))   # 1日分＝1〜3回のアクセス。間隔（3秒以上）は変えない
-        log(f"インプレッションのさかのぼり：この実行では1回 {P['impBackfill']} 日分まで（手動の指定・アクセス {P['impBudget']} 回まで）")
+        P["impBackfill"] = max(0, min(core.IMP_MAX_BACK_DAYS, int(ov)))
+        log(f"インプレッションのさかのぼり：この実行では1回 {P['impBackfill']} 日分まで（手動の指定・アクセス {fetch.imp_budget(P['impBackfill'])} 回まで）")
     if not P["own"] and not P["bench"]:
         log("✗ 自分のクリエイターIDもベンチマークもありません（シートの「設定」を確認してください）。")
         return 1, log
     started = int(now_ms if now_ms is not None else time.time() * 1000)
+    tl = str(env.get("NA_TIME_LIMIT_MIN") or "").strip()   # v1.4.5：GitHub の実行時間の上限（分）。この時間を過ぎたら、さかのぼりを止めて取れた分を送る
+    if tl.isdigit() and int(tl) > 0:
+        P["deadline"] = time.time() + int(tl) * 60
+        log(f"実行時間の上限：{tl} 分を過ぎたら、さかのぼりを止めて取れた分を送ります（のこりは次回）")
+    P["impBudget"] = fetch.imp_budget(P.get("impBackfill") or 0)   # v1.4.5：手動でも毎日の実行でも、さかのぼる日数に合わせる（1日分＝1〜3回・間隔3秒以上は変えない）
     http = Client(cookie_value=cookie, interval_sec=P["interval"], sleep=sleep, opener=opener, max_requests=300 + max(0, P.get("impBudget", fetch.IMP_REQ_BUDGET) - fetch.IMP_REQ_BUDGET) + (COMMENTERS_FULL_EXTRA if P.get("commentersFull") else 0))
     out = fetch.run(http, P, started, log, has_cookie=bool(cookie), dash_off=bool(a.no_dashboard))
     msg = fetch.summary_message(out, http.requests)
