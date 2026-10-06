@@ -12,7 +12,9 @@ noteの数字（スキ・コメント・フォロワー・PV）を**毎朝自動
 - 伸びている記事、「読まれているのにスキが少ない記事」「隠れた名作」を見つける
 - よくスキ・コメントしてくれる人のランキング、「最近来なくなった人」「常連になりかけの人」のお知らせ
 - 今週やるとよいこと（「次の一手」カード）が自動で出る
-- 目標にしている人（最大5人）との比較
+- 目標にしている人（最大5人）との比較（「直近30日」などは、実際に記録がある日付と日数つきで表示）
+- 「分析」タブ：期間を選んで前の期間とくらべる・公開から1/3/7/30日目の伸び方・何が効いているか（曜日・時間帯・タイトルの長さ・タグなど）・見直し候補・フォロワーが増えた日・CSVで書き出し
+- ホームに「お知らせ」（急に読まれた・止まった記事など）・「この1週間のふり返り」・「今月の目標」（PV・スキ・フォロワーの目標と月末の見こみ）
 - （やりたい人だけ）AIが返信やお礼の下書き・次の記事案を作る
 
 ## 用意するもの
@@ -76,10 +78,11 @@ noteの数字（スキ・コメント・フォロワー・PV）を**毎朝自動
    - Repository name（名前）：`my-note-analytics` など好きな名前
    - **Private（非公開）** を選ぶ ← 大事
    - **Create repository** を押す
-3. できた自分用のページで、上の **Settings（設定）** → 左の **Secrets and variables** → **Actions** → 緑の **New repository secret**。
-   - Name に `NA_RECEIVER_URL`、Secret に URL を貼って **Add secret**
-   - もう一度 **New repository secret** → Name に `NA_RECEIVER_SECRET`、Secret に合言葉を貼って **Add secret**
-   - （シートの画面の「名前をコピー」「中身をコピー」ボタンを使うと楽です）
+3. できた自分用のページで、上の **Settings（設定）** → 左の **Secrets and variables** → **Actions** → 緑の **New repository secret**。**【2つとも】登録します（1つずつ2回）。**
+   - 1つ目：**Name 欄**に `NA_RECEIVER_URL`、**Secret 欄**に URL を貼って **Add secret**
+   - 2つ目：もう一度 **New repository secret** → **Name 欄**に `NA_RECEIVER_SECRET`、**Secret 欄**に合言葉を貼って **Add secret**
+   - Name 欄には「名前」、Secret 欄には「中身」です（逆にしないでください）。シートの画面の「名前をコピー」「中身をコピー」ボタンを使うと楽です
+   - 1つだけだと届きません。登録後の一覧に `NA_RECEIVER_SECRET` と `NA_RECEIVER_URL` の **2行** が並んでいれば OK
 4. 上の **Actions** →（緑のボタンが出たら）**I understand my workflows, go ahead and enable them**（＝動かしてOK）。
 5. 左の **note-fetch** → 右の **Run workflow** → 緑の **Run workflow**。
 6. 5〜10分ほど待つと、シートの「はじめに」タブが **🎉 準備完了！** になります。
@@ -90,6 +93,17 @@ noteの数字（スキ・コメント・フォロワー・PV）を**毎朝自動
 ---
 
 ## もっと便利に（やりたい人だけ）
+
+### ダッシュボードの「今すぐ取得する」ボタンを使う（④が終わってから）
+毎朝の自動記録とは別に、ダッシュボードのボタンから GitHub の取得を動かせます。**④（2つの登録と Run workflow）が終わって、データが一度届いてから** にしてください（まだのときは、シートが先に ④ をすすめます）。
+1. GitHub の右上の自分のアイコン → **Settings** → 左のいちばん下 **Developer settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**。
+2. 次のように選んで **Generate token** → 出てきた `github_pat_…` をコピー（この画面でしか見られません）。
+   - Expiration（期限）：好きな長さ（切れたら作り直して登録し直します）
+   - **Repository access：Only select repositories** → ④で作った自分のリポジトリだけを選ぶ
+   - **Permissions → Repository permissions → Actions：Read and write**（Metadata は自動で Read-only になります。ほかは触らなくてOK）
+3. シートのメニュー **「note分析」→「GitHub の取得ボタン用トークンを登録」**。
+   - 1つ目の質問：リポジトリ名。GitHub で自分のリポジトリを開いたときの、アドレスの **「github.com/」のあと**（例：`https://github.com/taro/my-note-analytics` なら `taro/my-note-analytics`。アドレスをそのまま貼ってもOK）。データが一度届いていれば最初から名前が出ているので、空のまま OK で大丈夫です
+   - 2つ目の質問：コピーしたトークンを貼る
 
 ### AIに返信の下書きや記事案を作ってもらう
 - 「設定」タブの **AIの種類** で選びます。**Gemini（ジェミニ）なら無料**で使えます。ChatGPT・Claude は使った分だけ有料です。
@@ -140,6 +154,9 @@ PVは note にログインした本人しか見られないため、自分のロ
 | 「はじめに」の ④ がずっと「まだ」 | GitHub の Actions で note-fetch が赤くなっていないか見る。赤いときは Secrets の名前（`NA_RECEIVER_URL`・`NA_RECEIVER_SECRET`）が1文字も違わないか確認 |
 | ダッシュボードが「作った本人だけが使えます」になる | シートと同じ Google アカウントでログインしているか確認（スマホのブラウザも） |
 | 合言葉をなくした | メニュー「GitHub に登録する2つを表示」でいつでも見られます |
+| GitHub では成功（緑）なのに ④ が「まだ」 | Secrets が2つとも登録されているか（`NA_RECEIVER_URL` と `NA_RECEIVER_SECRET`）、Name 欄と Secret 欄が逆になっていないか確認。メニュー「はじめにのチェックを更新」を押すと、取得ボタン用トークンを登録している人には GitHub の最後の実行も表示します |
+| 取得ボタンで「404」 | リポジトリ名が違うか、トークンでそのリポジトリを選んでいません。①リポジトリ名はアドレスの「github.com/」のあと（大文字・小文字も同じ）②トークンの Repository access で、そのリポジトリを選んでいるか ③Permissions の Actions が Read and write か を確かめて、メニュー「GitHub の取得ボタン用トークンを登録」で登録し直す |
+| 取得ボタンで「403」 | トークンに Actions の「Read and write」の権限がありません。上の①〜③を確かめて登録し直す |
 
 ## やめるとき
 1. GitHub：自分用コピーの **Settings** → いちばん下の **Delete this repository**（または Actions → note-fetch →「…」→ Disable workflow）。

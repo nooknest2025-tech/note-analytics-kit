@@ -232,6 +232,24 @@
     .toast { bottom: 24px; left: calc(50% + 116px); }
   }
   .navlogo { display: none; }
+  /* v1.7.0：お知らせ・ふり返り・目標・自分の分析 */
+  .alerts { display: flex; flex-direction: column; gap: 8px; }
+  .alrt { display: flex; gap: 10px; align-items: flex-start; padding: 11px 10px 11px 12px; border-radius: 14px; background: #F1FBF9; }
+  .alrt.down { background: #FFF4F0; } .alrt .ic { flex: 0 0 auto; font-size: 18px; line-height: 1.4; } .alrt .b { flex: 1; min-width: 0; font-size: 13px; line-height: 1.55; }
+  .alrt .b a, .alrt .b .t { font-weight: 800; display: block; word-break: break-all; color: inherit; } .alrt .x { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 10px; border: 0; background: rgba(0,0,0,.05); font-size: 14px; cursor: pointer; color: var(--sub); font-family: inherit; }
+  .rvk { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .rvk > div { background: #F6F8F7; border-radius: 12px; padding: 9px 10px; min-width: 0; } .rvk b { display: block; font-size: 20px; font-weight: 900; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .rvk .l { font-size: 11.5px; color: var(--sub); font-weight: 800; } .rvk .s { font-size: 11.5px; color: var(--sub); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .rvl { font-size: 13px; margin: 6px 0; line-height: 1.55; word-break: break-all; } .rvl .k { font-weight: 800; color: var(--sub); margin-right: 6px; }
+  .goal { margin: 10px 0 14px; } .goal:first-child { margin-top: 0; } .goal .gl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 800; } .goal .gl span { font-size: 12px; color: var(--sub); font-weight: 700; }
+  .gbar { position: relative; height: 12px; border-radius: 6px; background: #EEF1F0; overflow: hidden; margin: 6px 0 4px; } .gbar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--g); } .gbar i.pj { background: #BFEDE4; }
+  .goal .gs { font-size: 12px; color: var(--sub); }
+  .kpis.k4 .kpi .v { font-size: 26px; }
+  .tbl2 td, .tbl2 th { white-space: nowrap; } .tbl2 td.best { background: var(--gl); font-weight: 800; }
+  .cv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 8px 0; } .cv div { background: #F6F8F7; border-radius: 10px; padding: 6px 8px; min-width: 0; } .cv b { display: block; font-size: 16px; line-height: 1.25; } .cv span { font-size: 10.5px; color: var(--sub); font-weight: 700; }
+  .csvbtns { display: grid; grid-template-columns: 1fr; gap: 8px; } .csvrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); } .csvrow:first-child { border-top: 0; } .csvrow .b { flex: 1 1 160px; min-width: 0; font-size: 13.5px; font-weight: 800; } .csvrow .b small { display: block; font-weight: 500; color: var(--sub); font-size: 11.5px; }
+  .trig { padding: 10px 2px; border-top: 1px solid var(--line); } .trig:first-child { border-top: 0; } .trig .h { font-weight: 800; font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .trig .a { font-size: 12.5px; margin-top: 4px; word-break: break-all; } .trig .a a { color: inherit; }
+  .mine-sec { scroll-margin-top: 70px; }
+  @media (min-width: 640px) { .rvk { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
   /* 運用（AI下書き・予定帳） */
   .ritem { border-top: 1px solid var(--line); padding-bottom: 6px; } .list > .ritem:first-child { border-top: 0; } .ritem > .item { border-top: 0; }
   .acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px 46px; }
@@ -310,6 +328,7 @@
   <button data-t="home" class="on" aria-label="ホーム"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></button>
   <button data-t="art" aria-label="記事"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>記事</span></button>
   <button data-t="plan" aria-label="予定帳"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>予定帳</span></button>
+  <button data-t="mine" aria-label="分析"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M5 15l4-5 4 3 6-7"/><circle cx="19" cy="6" r="1.4"/></svg><span>分析</span></button>
   <button data-t="fan" aria-label="ファン"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>ファン</span><span class="badge hidden" id="fanBadge"></span></button>
   <button data-t="cmp" aria-label="比較"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20V10M12 20V4M18 20v-7"/></svg><span>比較</span></button>
   <button data-t="more" aria-label="その他"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span>その他</span></button>
@@ -323,6 +342,11 @@
     <div class="ptitle"><h1 id="who">ホーム</h1><div class="meta" id="homeMeta"></div></div>
     <div id="skel"><div class="kpis"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div><div class="skel" style="height:220px"></div></div>
     <div class="kpis" id="kpis"></div>
+    <div class="card hidden" id="alertCard"><h2>お知らせ<small id="alertSub">記録したデータから自動で</small></h2><div class="alerts" id="alertList"></div></div>
+    <div class="grid2">
+      <div class="card" id="reviewCard"><h2>この1週間のふり返り<small id="reviewSub"></small></h2><div id="reviewBody"></div></div>
+      <div class="card" id="goalCard"><h2>今月の目標<button class="more" id="btnGoal" type="button">目標を入れる</button></h2><div id="goalBody"></div></div>
+    </div>
     <div class="card hidden" id="nextCard"><h2>今週の次の一手<small>記録したデータから自動で（AIは使いません）</small></h2><div class="nexts" id="nextList"></div></div>
     <div class="card"><h2>毎日のPVとスキ<small id="trendSub"></small></h2><div class="chart" id="trend"></div></div>
     <div class="grid2">
@@ -367,6 +391,43 @@
     <p class="hint">予定は「投稿予定」シートに保存します。投稿は自動ではしません（note で自分で投稿します）。</p>
   </section>
 
+  <section id="t-mine" class="hidden">
+    <div class="ptitle"><h1>自分の分析</h1><div class="meta" id="mineMeta"></div></div>
+    <div class="card">
+      <div class="frange" id="mineRange" role="group" aria-label="期間を指定" style="margin-bottom:12px">
+        <div class="frow"><div><label for="mineFrom">開始日</label><input id="mineFrom" type="date"></div><span class="tilde" aria-hidden="true">〜</span><div><label for="mineTo">終了日</label><input id="mineTo" type="date"></div></div>
+        <div class="chips" id="minePresets" role="group" aria-label="よく使う期間"></div>
+        <div class="hint" id="mineRangeHint"></div>
+      </div>
+      <div class="kpis k4" id="mineKpis"></div>
+      <h2 style="font-size:15px;margin:4px 0 8px">毎日のPVとスキ<small id="mineTrendSub" style="font-size:12px;color:var(--sub);font-weight:500"></small></h2>
+      <div class="chart" id="mineTrend"></div>
+      <h2 style="font-size:15px;margin:16px 0 8px">フォロワー数<small id="mineFolSub" style="font-size:12px;color:var(--sub);font-weight:500"></small></h2>
+      <div class="chart" id="mineFol"></div>
+      <ul class="notes hint" id="mineNotes" style="margin-top:10px"></ul>
+      <div class="status" id="mineStatus"></div>
+    </div>
+    <div class="card mine-sec" id="curveCard"><h2>記事の伸び方<small id="curveSub"></small></h2>
+      <div class="seg sm" id="curveSeg" style="margin-bottom:10px;display:inline-flex"><button data-c="likes" class="on" type="button">スキ</button><button data-c="pv" type="button">PV</button></div>
+      <div class="cv" id="curveMed"></div><div class="chart" id="curveChart"></div><div id="curveTypes" style="margin-top:8px"></div>
+      <div class="scroll" id="curveList" style="margin-top:8px"></div></div>
+    <div class="card mine-sec" id="worksCard"><h2>何が効いているか<small id="worksSub"></small></h2>
+      <div class="chips" id="worksTabs" role="group" aria-label="くらべる項目" style="margin-bottom:8px"></div>
+      <div class="scroll" id="worksTable"></div><div class="hint" id="worksHint" style="margin-top:6px"></div></div>
+    <div class="card mine-sec" id="oppCard"><h2>見直し候補<small id="oppSub"></small></h2>
+      <div class="chart" id="oppChart"></div><div class="hint" id="oppHint" style="margin:6px 0 10px"></div>
+      <div class="grid2" style="margin-bottom:0">
+        <div><h3 style="font-size:14px;margin:4px 0 6px">読まれたのに反応が少ない<br><small style="font-weight:500;color:var(--sub)">冒頭・中身を見直す候補</small></h3><div class="list" id="oppLowReact"></div></div>
+        <div><h3 style="font-size:14px;margin:4px 0 6px">反応はいいのに読まれていない<br><small style="font-weight:500;color:var(--sub)">タイトル・紹介のしかたを見直す候補</small></h3><div class="list" id="oppLowRead"></div></div>
+      </div></div>
+    <div class="card mine-sec" id="trigCard"><h2>フォロワーが増えたきっかけ（目安）<small id="trigSub"></small></h2>
+      <div class="hint" id="trigHint" style="margin-bottom:8px"></div>
+      <div class="list" id="trigRank"></div>
+      <h3 style="font-size:14px;margin:14px 0 4px">増えた日</h3><div id="trigDays"></div></div>
+    <div class="card" id="csvCard"><h2>CSVで書き出す<small>Excel・スプレッドシートで開けます</small></h2>
+      <div class="csvbtns" id="csvBtns"></div><div class="status" id="csvStatus"></div></div>
+  </section>
+
   <section id="t-fan" class="hidden">
     <div class="ptitle"><h1>ファン</h1><div class="meta" id="fanMeta"></div></div>
     <div class="kpis" id="fanKpis"></div>
@@ -397,9 +458,9 @@
     <div class="ptitle"><h1>比較</h1><div class="meta" id="cmpMeta"></div></div>
     <div class="people" id="cmpPeople"></div>
     <div class="grid2">
-      <div class="card"><h2>数字をならべる<small id="cmpDays"></small></h2><div id="cmpBars"></div></div>
+      <div class="card"><h2>数字をならべる<small id="cmpDays"></small></h2><div id="cmpBars"></div><div class="hint" id="cmpRecent" style="margin-top:8px"></div></div>
       <div class="card"><h2>週ごとの投稿数<small>直近13週</small></h2><div class="chart" id="cmpWeekly"></div></div>
-      <div class="card"><h2>フォロワーの増え方<small>直近90日・最初の日＝0</small></h2><div class="chart" id="cmpFollow"></div></div>
+      <div class="card"><h2>フォロワーの増え方<small id="cmpFollowSub"></small></h2><div class="chart" id="cmpFollow"></div></div>
       <div class="card"><h2>週ごとのスキ中央値<small>その週の記事・今の数</small></h2><div class="chart" id="cmpMedian"></div></div>
     </div>
     <div class="card"><h2>くわしい表</h2><div class="hint" style="margin-bottom:6px">テーマや読者が違うので、数字の大小より「やり方の違い」を見ましょう。</div><div class="scroll" id="cmp"></div></div>
@@ -409,11 +470,11 @@
     <div class="ptitle"><h1>その他</h1></div>
     <div class="card"><h2>データの取得</h2><div class="hint" id="lastFetch"></div>
       <button class="btn sec" id="btnFetch">今すぐ取得する（数十秒〜数分）</button><div class="status" id="fetchStatus"></div></div>
-    <div class="seg" id="moreSeg"><button data-s="ana" class="on">分析</button><button data-s="rec">記録</button><button data-s="ai">AI週報</button></div>
+    <div class="seg" id="moreSeg"><button data-s="ana" class="on">くわしい表</button><button data-s="rec">記録</button><button data-s="ai">AI週報</button></div>
     <div id="s-ana">
       <div class="card"><h2>気づき（自動メモ）</h2><ul class="notes" id="notes"></ul></div>
       <div class="grid2">
-        <div class="card"><h2>フォロワー推移<small>90日</small></h2><div class="chart" id="chartFollowers"></div></div>
+        <div class="card"><h2>フォロワー推移<small id="folSub"></small></h2><div class="chart" id="chartFollowers"></div></div>
         <div class="card"><h2>スキ合計の推移<small>取得した記事の合計</small></h2><div class="chart" id="chartLikes"></div></div>
         <div class="card"><h2>曜日別のスキ中央値</h2><div id="wd"></div></div>
         <div class="card"><h2>時間帯別のスキ中央値</h2><div id="hr"></div></div>
@@ -537,11 +598,11 @@
   }
 
   /* ---------- 画面の切り替え ---------- */
-  var TABS = ['home', 'art', 'plan', 'fan', 'cmp', 'more'];
+  var TABS = ['home', 'art', 'plan', 'mine', 'fan', 'cmp', 'more'];
   function show(t) {
     document.querySelectorAll('#tabs button').forEach(function (x) { var on = x.getAttribute('data-t') === t; x.classList.toggle('on', on); if (on) x.setAttribute('aria-current', 'page'); else x.removeAttribute('aria-current'); });
     TABS.forEach(function (k) { $('t-' + k).classList.toggle('hidden', k !== t); }); document.body.className = 'tab-' + t;
-    window.scrollTo(0, 0); if (D) drawCharts();
+    window.scrollTo(0, 0); if (t === 'mine' && D && D.ok && D.target) loadMine(); if (D) drawCharts();
   }
   document.querySelectorAll('#tabs button').forEach(function (b) { b.onclick = function () { show(b.getAttribute('data-t')); }; });
   document.querySelectorAll('[data-go]').forEach(function (b) { b.onclick = function () { show(b.getAttribute('data-go')); }; });
@@ -681,9 +742,10 @@
   function openSheet(title, kids) { put('sheetTitle', title); put('sheetBody', kids); $('sheet').classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
   function closeSheet() { $('sheet').classList.add('hidden'); document.body.style.overflow = ''; }
   $('sheetClose').onclick = closeSheet; $('sheet').addEventListener('click', function (e) { if (e.target === $('sheet')) closeSheet(); });
-  function copyText(t) {
-    function fallback() { var ta = el('textarea', { style: { position: 'fixed', top: '-1000px' } }); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('コピーしました。note に貼り付けて、読み直してから投稿してください。'); } catch (e) { toast('コピーできませんでした。長押しで選んでコピーしてください。'); } document.body.removeChild(ta); }
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('コピーしました。note に貼り付けて、読み直してから投稿してください。'); }, fallback); else fallback();
+  function copyText(t, msg) {
+    msg = msg || 'コピーしました。note に貼り付けて、読み直してから投稿してください。';
+    function fallback() { var ta = el('textarea', { style: { position: 'fixed', top: '-1000px' } }); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast(msg); } catch (e) { toast('コピーできませんでした。長押しで選んでコピーしてください。'); } document.body.removeChild(ta); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast(msg); }, fallback); else fallback();
   }
   // 下書きの箱：本文＋コピー＋（note で開く）
   function draftBox(drafts, openUrl, openLabel, at) {
@@ -821,11 +883,11 @@
     var c = d.cmp;
     if (!c) { put('cmpMini', empty('📊', 'ベンチマークが未設定です', '「設定」シートの「ベンチマークのクリエイターID」に、参考にしたい人のIDを入れてください（note.com/〇〇 の〇〇の部分。カンマ区切りで5人まで）。')); return; }
     var ppl = c.people.slice(0, 2);
-    put('cmpMini', [el('div', {}, hbars([['投稿ペース', '本/週', ppl.map(function (p) { return p.pace; }), '直近30日'], ['スキ中央値', '', ppl.map(function (p) { return p.median; }), c.days ? '直近' + c.days + '日の記事' : '全期間の記事']], ppl)),
+    put('cmpMini', [el('div', {}, hbars([['投稿ペース', '本/週', ppl.map(function (p) { return p.pace; }), paceNote(ppl)], ['スキ中央値', '', ppl.map(function (p) { return p.median; }), artRangeNote(ppl, c.days)]], ppl)),
       el('div', { class: 'chart', id: 'cmpMiniChart', style: { marginTop: '12px' } })]);
   }
   function renderHome(d) {
-    renderKpis(d); $('trendSub').textContent = '直近30日'; renderTop5(d); renderAiCard(d); renderReplies(d); renderWeekFans(d); renderIdeas(d); renderCmpMini(d);
+    renderKpis(d); $('trendSub').textContent = winText(30, (d.home || {}).trend || [], function (r) { return isNum(r[1]) || isNum(r[2]); }); renderAlerts(d); renderReview(d); renderGoals(d); renderTop5(d); renderAiCard(d); renderReplies(d); renderWeekFans(d); renderIdeas(d); renderCmpMini(d);
     var n = (d.home || {}).newFans; $('fanBadge').textContent = n > 99 ? '99+' : String(n || ''); $('fanBadge').classList.toggle('hidden', !n);
   }
 
@@ -1145,10 +1207,12 @@
   function renderCmp() {
     var c = D && D.cmp;
     if (!c) { put('cmpPeople', null); put('cmpBars', empty('📊', 'ベンチマークが未設定です', '「設定」シートで自分のIDとベンチマークのIDを入れると比較できます。')); ['cmpWeekly', 'cmpFollow', 'cmpMedian'].forEach(function (id) { put(id, null); }); put('cmp', null); return; }
-    put('cmpPeople', c.people.map(function (p) { return el('div', { class: 'person' + (p.own ? '' : ' b') }, [el('div', { class: 'pid', text: (p.own ? '自分・' : '') + '@' + p.id }), el('div', { class: 'pv num' }, [fmt(p.followers), el('small', { style: { fontSize: '12px', color: '#6A7572', marginLeft: '3px' }, text: '人' })]), el('div', { class: 'hint' }, ['フォロワー', isNum(p.growth) ? ' ' : '', isNum(p.growth) ? delta(p.growth) : null, isNum(p.growth) ? '（30日）' : ''])]); }));
-    $('cmpDays').textContent = c.days ? '直近' + c.days + '日の記事' : '全期間の記事';
-    put('cmpBars', hbars([['投稿ペース', '本/週', c.people.map(function (p) { return p.pace; }), '直近30日'], ['スキ中央値', '', c.people.map(function (p) { return p.median; })], ['24時間のスキ（中央値）', '', c.people.map(function (p) { return p.d1; }), '推定を含む'],
+    put('cmpPeople', c.people.map(function (p) { return el('div', { class: 'person' + (p.own ? '' : ' b') }, [el('div', { class: 'pid', text: (p.own ? '自分・' : '') + '@' + p.id }), el('div', { class: 'pv num' }, [fmt(p.followers), el('small', { style: { fontSize: '12px', color: '#6A7572', marginLeft: '3px' }, text: '人' })]),
+      el('div', { class: 'hint' }, isNum(p.growth) ? ['フォロワー ', delta(p.growth), '（' + md(p.growthFrom) + '→' + md(p.growthTo) + '）'] : ['フォロワー：' + (p.growthText || 'まだ記録がありません')])]); }));
+    $('cmpDays').textContent = artRangeNote(c.people, c.days);
+    put('cmpBars', hbars([['投稿ペース', '本/週', c.people.map(function (p) { return p.pace; }), paceNote(c.people)], ['直近30日に公開した記事のスキ（平均）', '', c.people.map(function (p) { return p.recent ? p.recent.avgLikes : null; }), '公開2日以上の記事'], ['スキ中央値', '', c.people.map(function (p) { return p.median; }), '分析した記事'], ['24時間のスキ（中央値）', '', c.people.map(function (p) { return p.d1; }), '推定を含む'],
       ['コメント中央値', '', c.people.map(function (p) { return p.comments; })], ['分析した記事数', '本', c.people.map(function (p) { return p.n; })]], c.people));
+    put('cmpRecent', c.people.map(function (p) { var r = p.recent || {}; return el('div', { text: (p.own ? '自分' : '@' + p.id) + '：' + recentText(r) + (isNum(r.avgLikes) ? '・平均スキ ' + fmt(r.avgLikes) + '（' + r.nLikes + '本）' : '') + (p.artFrom ? '・分析した記事 ' + md(p.artFrom) + '〜' + md(p.artTo) + '（' + p.n + '本）' : '') }); }));
     put('cmp', d2table(D.compare));
   }
   function drawCmpCharts() {
@@ -1157,6 +1221,7 @@
     if (!$('t-cmp').classList.contains('hidden')) {
       barChart($('cmpWeekly'), c.weekly.labels, ser('posts'), { label: '週ごとの投稿数', emptyTitle: '直近13週の投稿がありません' });
       var fr = c.followers || [], head = fr[0] || [], rows = fr.slice(1);
+      $('cmpFollowSub').textContent = rows.length ? '記録 ' + (rows.length > 1 ? md(rows[0][0]) + '〜' + md(rows[rows.length - 1][0]) : md(rows[0][0])) + '（' + rows.length + '日分）・最初の記録＝0' : 'まだ記録がありません';
       lineChart($('cmpFollow'), head.slice(1).map(function (id, j) {
         var base = null; return { name: c.people[j] && c.people[j].own ? '自分' : id, color: cmpColor(c.people[j] || {}, j), pts: rows.map(function (r) { var v = r[j + 1]; if (!isNum(v)) return [r[0], null]; if (base === null) base = v; return [r[0], v - base]; }) };
       }), { zero: true, label: 'フォロワーの増え方', emptyTitle: 'もう少しで線が出ます', emptyText: 'フォロワー数の記録が2日分以上たまると、自分とベンチマークの「増え方」をくらべられます。' });
@@ -1167,6 +1232,263 @@
   function d2table(cmp) {
     if (!cmp) return empty('📊', 'まだありません', '');
     return el('table', {}, [el('tr', {}, cmp.header.map(function (h) { return el('th', { text: h }); })), cmp.rows.map(function (r) { return el('tr', {}, r.map(function (c, i) { return i ? el('td', { class: 'n', text: fmt(c) }) : el('td', { text: c }); })); })]);
+  }
+
+  /* ---------- v1.7.0：期間の文字（「直近◯日」は、その日数ぶんの記録があるときだけ） ---------- */
+  function winText(wanted, rows, has) {
+    var r = (rows || []).filter(has || function () { return true; });
+    if (!r.length) return 'まだ記録がありません';
+    var a = r[0][0], b = r[r.length - 1][0], span = a === b ? md(a) : md(a) + '〜' + md(b);
+    return r.length >= wanted ? '直近' + wanted + '日（' + span + '）' : '記録がある ' + r.length + '日分（' + span + '）';
+  }
+  function recentText(r) {
+    if (!r || !r.to) return '';
+    return r.cover >= 30 ? md(r.from) + '〜' + md(r.to) + 'の30日で ' + r.posts + '本' : '取得できた記事でわかる ' + r.cover + '日分（' + md(r.coverFrom) + '〜' + md(r.to) + '）で ' + r.posts + '本';
+  }
+  function paceNote(ppl) {
+    var full = (ppl || []).every(function (p) { return !p.recent || p.recent.cover >= 30; }), r = ((ppl || [])[0] || {}).recent;
+    return full ? (r ? md(r.from) + '〜' + md(r.to) + 'に公開した記事から' : '直近30日に公開した記事から') : '直近30日（取得できた記事が30日より短い人は、その日数で計算）';
+  }
+  function artRangeNote(ppl, days) { return days ? '「分析する期間」= 公開から' + days + '日以内の記事' : '取得した全部の記事'; }
+
+  /* ---------- お知らせ（消したものは、この端末に覚えておく） ---------- */
+  var DISMISS_KEY = 'naDismissedAlerts', DISMISS_MEM = {};
+  function dismissed() { try { var o = JSON.parse(window.localStorage.getItem(DISMISS_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return DISMISS_MEM; } }
+  function dismiss(id) {
+    var o = dismissed(), now = Date.now(); o[id] = now;
+    Object.keys(o).forEach(function (k) { if (now - o[k] > 60 * 864e5) delete o[k]; });   // 60日たったら忘れる
+    try { window.localStorage.setItem(DISMISS_KEY, JSON.stringify(o)); } catch (e) { DISMISS_MEM = o; }
+  }
+  function homeAlerts(d) {
+    var list = (d.alerts || []).slice(), I = d.ins, lv = I && I.alerts && I.alerts.leaving || [];
+    if (lv.length) list.push({ id: 'leaving:' + lv.slice(0, 5).map(function (r) { return r[0]; }).join(','), kind: 'leaving', level: 'down', fan: true,
+      text: '前はよく来てくれていた ' + lv.length + '人が、最近の記事に来ていません（' + lv.slice(0, 3).map(function (r) { return r[1]; }).join('・') + (lv.length > 3 ? ' ほか' : '') + '）。' });
+    var gone = dismissed(); return list.filter(function (a) { return !gone[a.id]; });
+  }
+  function renderAlerts(d) {
+    var list = homeAlerts(d); $('alertCard').classList.toggle('hidden', !list.length);
+    put('alertList', list.map(function (a) {
+      var head = a.title ? link(String(a.title).slice(0, 60), a.url, 't') : a.fan ? el('button', { type: 'button', class: 'mini', style: { marginBottom: '4px' }, onclick: function () { show('fan'); MOVE.t = 'leaving'; renderInsights(); } }, '離れかけの人を見る →') : null;
+      return el('div', { class: 'alrt ' + (a.level === 'down' ? 'down' : 'up'), 'data-alert': a.kind }, [el('span', { class: 'ic', text: a.kind === 'spike' ? '📈' : a.kind === 'stall' ? '📉' : a.kind === 'fdrop' ? '⚠️' : '💤' }),
+        el('div', { class: 'b' }, [head, el('div', { text: a.text })]),
+        el('button', { class: 'x', type: 'button', 'aria-label': 'このお知らせを消す', 'data-dismiss': a.id, onclick: function () { dismiss(a.id); renderAlerts(D); } }, '✕')]);
+    }));
+  }
+
+  /* ---------- この1週間のふり返り ---------- */
+  function pctChip(c) {
+    if (!c) return chip('前の7日は記録なし');
+    var v = isNum(c.pct) ? c.pct : null;
+    return chip((c.perDay ? '1日あたり ' : '') + (v === null ? signed(c.diff) : (v > 0 ? '▲ +' : v < 0 ? '▼ −' : '± ') + Math.abs(v) + '%'), v > 0 ? 'up' : v < 0 ? 'down' : '');
+  }
+  function renderReview(d) {
+    var r = d.review;
+    if (!r) { $('reviewSub').textContent = ''; put('reviewBody', empty('🗓', 'まだ出せません', '記録がたまると、この1週間の数字と、前の1週間とのちがいが出ます。')); return; }
+    $('reviewSub').textContent = md(r.from) + '〜' + md(r.to) + '（前の7日：' + md(r.prevFrom) + '〜' + md(r.prevTo) + '）';
+    var c = r.cur, p = r.prev, box = function (l, v, subs) { return el('div', {}, [el('div', { class: 'l', text: l }), el('b', { class: 'num', text: v }), el('div', { class: 's' }, subs)]); };
+    var fd = c.followers, pfd = p.followers;
+    put('reviewBody', [el('div', { class: 'rvk' }, [
+      box('PV', isNum(c.pv.sum) ? fmt(c.pv.sum) : '—', isNum(c.pv.sum) ? [c.pv.days < 7 ? el('span', { text: c.pv.days + '日分の記録' }) : null, pctChip(r.pvCmp)] : [el('span', { text: 'PVの記録なし' })]),
+      box('スキされた数', isNum(c.likes.sum) ? fmt(c.likes.sum) : '—', isNum(c.likes.sum) ? [pctChip(r.likesCmp)] : [el('span', { text: '「スキした人」の記録で出ます' })]),
+      box('フォロワー', isNum(fd.diff) ? signed(fd.diff) : '—', [el('span', { text: isNum(fd.diff) ? md(fd.from) + '→' + md(fd.to) : fd.text }), isNum(fd.diff) && isNum(pfd.diff) ? el('span', { text: '前の7日 ' + signed(pfd.diff) }) : null]),
+      box('新しいファン', fmt(r.newFans) + '人', [el('span', { text: r.fans.slice(0, 2).map(function (f) { return f[0]; }).join('・') + (r.newFans > 2 ? ' ほか' : '') })])]),
+      el('div', { class: 'rvl' }, [el('span', { class: 'k', text: '投稿' }), r.posts + '本']),
+      r.best ? el('div', { class: 'rvl' }, [el('span', { class: 'k', text: 'いちばん' + (r.best[5] === 'pv' ? '読まれた' : 'スキが増えた') }), link(String(r.best[1]).slice(0, 50), r.best[3]), '（' + (r.best[5] === 'pv' ? fmt(r.best[4]) + ' PV' : '+' + fmt(r.best[4]) + ' スキ') + '）']) : null,
+      r.weak ? el('div', { class: 'rvl' }, [el('span', { class: 'k', text: '伸び悩み' }), link(String(r.weak[1]).slice(0, 50), r.weak[3]), '（公開' + r.weak[6] + '日目までのスキ ' + r.weak[4] + '・ふだんの真ん中 ' + r.weak[5] + '）']) : null,
+      r.next.length ? el('div', { class: 'nexts', style: { marginTop: '10px' } }, r.next.map(function (n, i) {
+        return el('button', { type: 'button', class: 'nx k-' + n[0], 'data-review': n[0], onclick: function () {
+          if (n[0] === 'best' && r.best) { var s = (D.slots && D.slots.next) || {}; planEditor({ date: s.date || today, time: s.time || '', title: '（続き）' + r.best[1], status: '下書き', memo: '関連：' + r.best[3] }); return; }
+          show(n[3]); } }, [el('span', { class: 'n', text: i + 1 }), el('span', { class: 'b' }, [el('div', { class: 't', text: n[1] }), el('div', { class: 'x', text: n[2] })]), el('span', { class: 'go', text: n[0] === 'best' ? '予定帳へ →' : '見る →' })]);
+      })) : el('div', { class: 'hint', text: '今週の次の一手は、とくにありません。' })]);
+  }
+
+  /* ---------- 今月の目標 ---------- */
+  function renderGoals(d) {
+    var g = d.goals; if (!g) { put('goalBody', empty('🎯', 'まだ出せません', '')); return; }
+    var any = g.items.some(function (x) { return isNum(x.goal); }); $('btnGoal').textContent = any ? '目標を変える' : '目標を入れる';
+    put('goalBody', [g.items.map(function (x) {
+      var has = isNum(x.goal), w = has && isNum(x.value) ? Math.max(0, Math.min(100, x.value / x.goal * 100)) : 0, pw = has && isNum(x.projected) ? Math.max(0, Math.min(100, x.projected / x.goal * 100)) : 0;
+      var val = isNum(x.value) ? (x.key === 'followers' ? signed(x.value) : fmt(x.value)) + (x.unit || '') : '—';
+      return el('div', { class: 'goal', 'data-goal': x.key }, [el('div', { class: 'gl' }, [x.label, el('span', { class: 'num', text: val + (has ? ' / ' + fmt(x.goal) + (x.unit || '') + (isNum(x.pct) ? '（' + x.pct + '%）' : '') : '') })]),
+        has ? el('div', { class: 'gbar' }, [el('i', { class: 'pj', style: { width: pw + '%' } }), el('i', { style: { width: w + '%' } })]) : null,
+        el('div', { class: 'gs', text: isNum(x.value) && x.days ? 'このペースだと月末に約 ' + fmt(x.projected) + (x.unit || '') + (has && isNum(x.projPct) ? '（目標の' + x.projPct + '%）' : '') + '・' + (x.from === x.to ? md(x.from) : md(x.from) + '〜' + md(x.to)) + 'の' + x.days + '日分から' + (x.note && x.key !== 'followers' ? '・' + x.note : '')
+          : (x.note || 'まだ記録がありません') })]);
+    }), el('div', { class: 'hint', text: g.month.replace('-', '年') + '月（' + g.daysInMonth + '日）。PV・スキは前日までの記録、フォロワーは最新の記録までで計算します。見こみは「今のペースが続いたら」の目安です。' })]);
+  }
+  function goalEditor() {
+    var g = (D && D.goals && D.goals.goals) || {}, inp = function (id, v) { var i = el('input', { id: id, type: 'number', inputmode: 'numeric', min: 0, step: 1, placeholder: '空欄＝目標なし' }); i.value = isNum(v) ? v : ''; return i; };
+    var a = inp('goalPv', g.pv), b = inp('goalLikes', g.likes), c = inp('goalFol', g.followers), btn = el('button', { class: 'btn', type: 'button', id: 'btnGoalSave' }, '保存する');
+    btn.onclick = function () {
+      btn.disabled = true; status('goalStatus', '保存しています…');
+      call('naWebSaveGoals', [{ pv: a.value, likes: b.value, followers: c.value }], function (r) { btn.disabled = false; if (!r.ok) { status('goalStatus', r.message, 'err'); return; } D.goals = r.goals; renderGoals(D); closeSheet(); toast('目標を保存しました（「設定」シートにも入っています）'); }, 'goalStatus');
+    };
+    openSheet('今月の目標', [el('div', { class: 'hint', text: '毎月同じ目標を使います。空欄にすると目標なし。「設定」シートの「今月の目標：…」の行に保存します。' }),
+      el('label', { for: 'goalPv', text: 'PV（今月の合計）' }), a, el('label', { for: 'goalLikes', text: 'スキ（今月スキされた数）' }), b, el('label', { for: 'goalFol', text: 'フォロワーの増加（人）' }), c, btn, el('div', { class: 'status', id: 'goalStatus' })]);
+  }
+  $('btnGoal').onclick = goalEditor;
+
+  /* ---------- 「分析」タブ（期間を選ぶと、そのつどサーバーで数える。期間によらない「伸び方」「効くもの」は最初の1回だけ） ---------- */
+  var MINE = { from: '', to: '', key: '', cache: {}, data: null, fixed: null, loading: false, err: '', curve: 'likes', works: 'weekday', fans: {} };
+  var MINE_PRESETS = [['d7', '直近7日'], ['d30', '直近30日'], ['thisMonth', '今月'], ['lastMonth', '先月'], ['d90', '直近90日'], ['thisYear', '今年']];
+  function minePreset(k) { return k === 'd7' ? [jstDay(-6), jstDay(0)] : k === 'd30' ? [jstDay(-29), jstDay(0)] : presetRange(k); }
+  function loadMine() {
+    if (!validDay(MINE.from) || !validDay(MINE.to)) { var d = minePreset('d30'); MINE.from = d[0]; MINE.to = d[1]; }
+    if (MINE.from > MINE.to) { var x = MINE.from; MINE.from = MINE.to; MINE.to = x; }
+    var key = MINE.from + '|' + MINE.to; MINE.key = key; MINE.err = '';
+    if (MINE.cache[key]) { MINE.data = MINE.cache[key]; MINE.loading = false; renderMine(); return; }
+    MINE.loading = true; renderMine();
+    call('naWebMine', [MINE.from, MINE.to, !MINE.fixed], function (r) {
+      if (MINE.key !== key) return;
+      MINE.loading = false;
+      if (!r || !r.ok) { MINE.err = (r && r.message) || 'もう一度ためしてください。'; MINE.data = null; }
+      else { if (r.curves) MINE.fixed = { curves: r.curves, works: r.works }; MINE.data = r; MINE.cache[key] = r; }
+      renderMine();
+    }, function (m) { if (MINE.key !== key) return; MINE.loading = false; MINE.err = m; renderMine(); });
+  }
+  function onMineInput() { var a = $('mineFrom').value, b = $('mineTo').value; if (!validDay(a) || !validDay(b)) return; MINE.from = a; MINE.to = b; loadMine(); }
+  $('mineFrom').addEventListener('change', onMineInput); $('mineTo').addEventListener('change', onMineInput);
+  document.querySelectorAll('#curveSeg button').forEach(function (b) { b.onclick = function () { MINE.curve = b.getAttribute('data-c'); document.querySelectorAll('#curveSeg button').forEach(function (x) { x.classList.toggle('on', x === b); }); renderCurves(); drawMineCharts(); }; });
+  function cmpChip(c, prevLabel) {
+    if (!c) return chip('前の期間は記録なし');
+    var v = isNum(c.pct) ? c.pct : null;
+    return chip((c.perDay ? '1日あたり ' : '') + (v === null ? signed(c.diff) : (v > 0 ? '▲ +' : v < 0 ? '▼ −' : '± ') + Math.abs(v) + '%'), v > 0 ? 'up' : v < 0 ? 'down' : '');
+  }
+  function renderMine() {
+    var fi = $('mineFrom'), ti = $('mineTo'), t0 = jstDay(0);
+    if (fi.value !== MINE.from) fi.value = MINE.from; if (ti.value !== MINE.to) ti.value = MINE.to; fi.max = t0; ti.max = t0; ti.min = MINE.from || '';
+    put('minePresets', MINE_PRESETS.map(function (s) { var d = minePreset(s[0]), act = d && d[0] === MINE.from && d[1] === MINE.to; return el('button', { type: 'button', class: act ? 'on' : null, 'data-mpreset': s[0], 'aria-pressed': act ? 'true' : 'false', onclick: function () { MINE.from = d[0]; MINE.to = d[1]; loadMine(); } }, s[1]); }));
+    status('mineStatus', MINE.loading ? '集計しています…' : MINE.err, MINE.err ? 'err' : null);
+    var R = MINE.data && MINE.data.range;
+    if (!R) { $('mineRangeHint').textContent = ''; return; }
+    var c = R.cur, p = R.prev, cp = R.cmp, prevTxt = '前の' + R.days + '日（' + md(R.prevFrom) + '〜' + md(R.prevTo) + '）とくらべて';
+    $('mineMeta').textContent = '@' + MINE.data.id;
+    $('mineRangeHint').textContent = md(R.from) + '〜' + md(R.to) + '（' + R.days + '日間）。' + prevTxt + '。記録した日数がちがうときは「1日あたり」でくらべます。';
+    put('mineKpis', [
+      kpi('PV', isNum(c.pv.sum) ? fmt(c.pv.sum) : '—', '', isNum(c.pv.sum) ? [cmpChip(cp.pv), el('span', { text: c.pv.days < R.days ? '記録 ' + c.pv.days + '日分' : '毎日の記録あり' })] : [el('span', { text: 'この期間のPVの記録なし' })], 'hero'),
+      kpi('スキされた数', isNum(c.likes.sum) ? fmt(c.likes.sum) : '—', '', isNum(c.likes.sum) ? [cmpChip(cp.likes), c.likes.days < R.days ? el('span', { text: c.likes.days + '日分' }) : null] : [el('span', { text: '「スキした人」の記録で出ます' })]),
+      kpi('フォロワー', isNum(c.followers.diff) ? signed(c.followers.diff) : '—', isNum(c.followers.diff) ? '人' : '', [el('span', { text: isNum(c.followers.diff) ? md(c.followers.from) + '→' + md(c.followers.to) + '（' + c.followers.days + '日）' : c.followers.text }), cp.followers ? chip('前の期間 ' + signed(p.followers.diff)) : null]),
+      kpi('スキ率', isNum(c.rate.pct) ? String(c.rate.pct) : '—', isNum(c.rate.pct) ? '%' : '', isNum(c.rate.pct) ? [cp.rate ? chip((cp.rate.diff > 0 ? '▲ +' : cp.rate.diff < 0 ? '▼ −' : '± ') + Math.abs(cp.rate.diff) + 'ポイント', cp.rate.diff > 0 ? 'up' : cp.rate.diff < 0 ? 'down' : '') : chip('前の期間は記録なし'), el('span', { text: 'スキ÷PV（PVを記録した' + c.rate.days + '日）' })] : [el('span', { text: 'PVとスキの両方の記録で出ます' })])]);
+    $('mineTrendSub').textContent = winText(R.days, R.series, function (r) { return isNum(r[1]) || isNum(r[2]); }).replace('直近', '');
+    var fs = R.series.filter(function (r) { return isNum(r[3]); }); $('mineFolSub').textContent = fs.length ? '記録 ' + fs.length + '日分' + (fs.length > 1 ? '（' + md(fs[0][0]) + '〜' + md(fs[fs.length - 1][0]) + '）' : '（' + md(fs[0][0]) + '）') : 'この期間の記録なし';
+    put('mineNotes', R.notes.map(function (n) { return el('li', { text: n }); }));
+    renderCurves(); renderWorks(); renderOpp(); renderTriggers(); renderCsv();
+    drawMineCharts();
+  }
+  function drawMineCharts() {
+    if ($('t-mine').classList.contains('hidden') || !MINE.data) return;
+    var R = MINE.data.range;
+    trendChart($('mineTrend'), R.series.map(function (r) { return [r[0], r[1], r[2]]; }));
+    lineChart($('mineFol'), [{ name: 'フォロワー', color: '#2FB9A2', pts: R.series.map(function (r) { return [r[0], r[3]]; }) }], { area: true, label: 'フォロワー数', emptyTitle: 'まだ線になりません', emptyText: 'この期間のフォロワー数の記録が2日分以上あると線が出ます（さかのぼっては取れません）。' });
+    var C = MINE.fixed && MINE.fixed.curves; if (!C) return;
+    var k = MINE.curve, med = C[k], rows = C.rows.filter(function (r) { return (k === 'pv' ? r[4] : r[5]).some(isNum); }).slice(0, 4), cols = ['#9AA5B8', '#C3A6E6', '#F2B880', '#8FC3F0'];
+    var lab = C.points.map(function (n) { return n + '日目'; });
+    lineChart($('curveChart'), [{ name: 'ふだん（真ん中の値）', color: '#2FB9A2', pts: lab.map(function (l, i) { return [l, med[i].median]; }) }].concat(rows.map(function (r, j) { return { name: '「' + String(r[1]).slice(0, 12) + '…」', color: cols[j], pts: lab.map(function (l, i) { return [l, (k === 'pv' ? r[4] : r[5])[i]]; }) }; })),
+      { label: '記事の伸び方', legend: true, emptyTitle: 'まだ出せません', emptyText: k === 'pv' ? '公開日から毎日の日次PVがそろった記事が出ると、線になります。' : '「スキした人」か「記事推移」の記録がある記事が出ると、線になります。' });
+    var O = MINE.data.opp; scatter($('oppChart'), O);
+  }
+  function renderCurves() {
+    var C = MINE.fixed && MINE.fixed.curves; if (!C) { put('curveMed', null); put('curveList', null); return; }
+    var k = MINE.curve, med = C[k], nArt = k === 'pv' ? C.nPv : C.nLikes;
+    $('curveSub').textContent = '記録がある記事だけ（' + nArt + '本／全' + C.articles + '本）';
+    put('curveMed', med.map(function (m) { return el('div', {}, [el('b', { class: 'num', text: isNum(m.median) ? fmt(m.median) : '—' }), el('span', { text: m.day + '日目まで（' + m.n + '本）' })]); }));
+    var T = C.types, name = { dash: 'スタートダッシュ型', mid: '中間', slow: 'じわじわ型' };
+    put('curveTypes', [C.typed ? el('div', { class: 'chips', style: { flexWrap: 'wrap' } }, ['dash', 'mid', 'slow'].map(function (t) { return chip(name[t] + ' ' + T[t] + '本', t === 'dash' ? 'g' : t === 'slow' ? 'wait' : ''); })) : null,
+      el('div', { class: 'hint', style: { marginTop: '6px' }, text: '公開日＝0日目。「◯日目まで」はその日の終わりまでの合計です。数字は、その日までの記録がある記事の真ん中の値（本数つき）。スタートダッシュ型＝30日目までのスキの7割以上が3日目までに集まった記事／じわじわ型＝4割以下（30日目までのスキが5以上の' + C.typed + '本で判定）。スキは「スキした人」の記録（ほぼ全部記録できている記事）か、記事推移のその日の記録から。PVは公開日から毎日の日次PVがある記事だけ。' })]);
+    var rows = C.rows.filter(function (r) { return (k === 'pv' ? r[4] : r[5]).some(isNum); }).slice(0, 40);
+    put('curveList', tbl(['公開日', 'タイトル'].concat(C.points.map(function (n) { return n + '日目'; })).concat(['型']), rows, function (r) { var v = k === 'pv' ? r[4] : r[5]; return [td(md(r[2])), tlink(r[1], r[3])].concat(v.map(function (x) { return td(x); })).concat([td(r[6] ? name[r[6]] : '')]); }));
+    $('curveList').firstChild && $('curveList').firstChild.classList && $('curveList').firstChild.classList.add('tbl2');
+  }
+  var WORKS_TABS = [['weekday', '曜日'], ['hour', '時間帯'], ['titleLen', 'タイトルの長さ'], ['tagCount', 'ハッシュタグの数'], ['tags', 'よく使うタグ'], ['paid', '無料・有料']];
+  function renderWorks() {
+    var W = MINE.fixed && MINE.fixed.works; if (!W) { put('worksTable', null); return; }
+    $('worksSub').textContent = 'スキ：公開2日以上の' + W.n + '本' + (W.from ? '（' + md(W.from) + '〜' + md(W.to) + '公開）' : '') + '／PV：' + W.nPv + '本' + (W.pvDate ? '（' + md(W.pvDate) + '時点）' : '');
+    put('worksTabs', WORKS_TABS.map(function (t) { var on = MINE.works === t[0]; return el('button', { type: 'button', class: on ? 'on' : null, 'data-works': t[0], 'aria-pressed': on ? 'true' : 'false', onclick: function () { MINE.works = t[0]; renderWorks(); } }, t[1]); }));
+    var rows = (W[MINE.works] || []).filter(function (r) { return r[1] > 0; }), best = -1, bestPv = -1, bestRate = -1;
+    rows.forEach(function (r) { if (!r[6] && isNum(r[2]) && r[2] > best) best = r[2]; if (!r[6] && isNum(r[4]) && r[4] > bestPv) bestPv = r[4]; if (!r[6] && isNum(r[5]) && r[5] > bestRate) bestRate = r[5]; });
+    var cell = function (v, isBest, suffix) { return el('td', { class: 'n' + (isBest ? ' best' : ''), text: isNum(v) ? fmt(v) + (suffix || '') : '—' }); };
+    put('worksTable', rows.length ? el('table', { class: 'tbl2' }, [el('tr', {}, ['', '本数', 'スキ平均', 'PVあり', 'PV平均', 'スキ率'].map(function (h) { return el('th', { text: h }); })),
+      rows.map(function (r) { return el('tr', {}, [el('td', { text: r[0] + (r[6] ? '（参考）' : '') }), cell(r[1]), cell(r[2], r[2] === best && !r[6]), cell(r[3]), cell(r[4], r[4] === bestPv && !r[6]), cell(r[5], r[5] === bestRate && !r[6], '%')]); })])
+      : el('div', { class: 'hint', text: MINE.works === 'tags' ? '2本以上で使ったタグがまだありません。' : 'まだありません。' }));
+    $('worksHint').textContent = '平均は記事の数で割った値です。5本未満は「（参考）」で、色はつけません（たまたまの差が大きいため）。色つき＝5本以上の中でいちばん高いところ。テーマのちがいも混ざるので、「ためしてみる候補」として見てください。';
+  }
+  function oppItem(r) { return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: '公開 ' + md(r[2]) }), el('span', { text: fmt(r[4]) + ' PV' }), el('span', { text: '♥ ' + fmt(r[5]) })])]), el('div', { class: 'big num' }, [r[6] + '%', el('small', { text: 'スキ率' })])]); }
+  function renderOpp() {
+    var O = MINE.data.opp;
+    $('oppSub').textContent = md(O.from) + '〜' + md(O.to) + 'に公開した記事のうち ' + O.n + '本';
+    $('oppHint').textContent = O.n >= 2 ? 'PVは' + (O.pvDate ? md(O.pvDate) + '時点の' : '') + '全期間PV、スキは今の数。真ん中：PV ' + fmt(O.medPv) + '・スキ率 ' + O.medRate + '%。' + (O.strict ? '下・上から4分の1に入る記事を出しています。' : '8本未満なので、真ん中より下・上で分けています（参考）。') + (O.young ? '公開3日未満の ' + O.young + '本は、まだ数字が動くので入れていません。' : '') + (O.noPv ? 'PVの記録がない ' + O.noPv + '本も入っていません。' : '')
+      : 'この期間に公開した記事で、PVの記録があるものが2本以上になると出ます' + (O.published ? '（公開 ' + O.published + '本・公開3日未満 ' + O.young + '本・PVなし ' + O.noPv + '本）' : '') + '。';
+    put('oppLowReact', O.lowReact.length ? O.lowReact.map(oppItem) : el('div', { class: 'hint', text: 'いまは該当する記事はありません。' }));
+    put('oppLowRead', O.lowRead.length ? O.lowRead.map(oppItem) : el('div', { class: 'hint', text: 'いまは該当する記事はありません。' }));
+  }
+  // 散布図：横＝PV、縦＝スキ率。点をタップするとタイトル
+  function scatter(host, O) {
+    put(host, null); var pts = (O && O.points) || []; if (pts.length < 2) return;
+    var W = widthOf(host), H = 200, L = 40, R = 12, T = 10, B = 26, xm = niceMax(Math.max.apply(null, pts.map(function (p) { return p[4]; }))), ym = niceMax(Math.max.apply(null, pts.map(function (p) { return p[6]; })));
+    var x = function (v) { return L + (W - L - R) * v / xm; }, y = function (v) { return T + (H - T - B) * (1 - v / ym); };
+    var lr = {}, ld = {}; O.lowReact.forEach(function (p) { lr[p[0]] = 1; }); O.lowRead.forEach(function (p) { ld[p[0]] = 1; });
+    var cap = el('div', { class: 'cap' }, [el('span', { class: 'hint', text: '点をタップするとタイトルが出ます' })]), s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': 'PVとスキ率の散らばり' });
+    [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(ym * f), y2: y(ym * f), stroke: '#E7EBE9', 'stroke-dasharray': f ? '3 4' : null })); s.appendChild(sv('text', { x: L - 6, y: y(ym * f) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(ym * f) + '%' })); });
+    [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('text', { x: x(xm * f), y: H - 8, 'font-size': 11, fill: '#8B9592', 'text-anchor': f === 0 ? 'start' : f === 1 ? 'end' : 'middle', text: short(xm * f) + (f === 1 ? ' PV' : '') })); });
+    if (isNum(O.medPv)) s.appendChild(sv('line', { x1: x(O.medPv), x2: x(O.medPv), y1: T, y2: H - B, stroke: '#C9D2CF', 'stroke-dasharray': '4 4' }));
+    if (isNum(O.medRate)) s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(O.medRate), y2: y(O.medRate), stroke: '#C9D2CF', 'stroke-dasharray': '4 4' }));
+    pts.forEach(function (p) { var c = lr[p[0]] ? '#E8890C' : ld[p[0]] ? '#12927F' : '#B8C1BE', dot = sv('circle', { cx: x(p[4]), cy: y(p[6]), r: lr[p[0]] || ld[p[0]] ? 5.5 : 4, fill: c, 'fill-opacity': 0.85 });
+      var pick = function () { put(cap, [el('span', { text: md(p[2]) }), link(String(p[1]).slice(0, 40), p[3]), el('span', { class: 'num', text: fmt(p[4]) + ' PV・スキ率 ' + p[6] + '%' })]); };
+      dot.addEventListener('click', pick); dot.addEventListener('pointerenter', pick); s.appendChild(dot); });
+    add(host, [cap, s, legend([['読まれたのに反応が少ない', '#E8890C'], ['反応はいいのに読まれていない', '#12927F'], ['そのほか', '#B8C1BE']])]);
+  }
+  function renderTriggers() {
+    var F = MINE.data.triggers;
+    $('trigSub').textContent = F.records ? 'フォロワーの記録 ' + F.records + '日分（' + md(F.recFrom) + '〜' + md(F.recTo) + '）' : 'この期間のフォロワーの記録なし';
+    $('trigHint').textContent = 'フォロワーが増えた日と、その日までの4日間（当日と前の3日）に公開した記事を並べています。増えた人数を、その間の記事の本数で等分した「目安」です（原因とは言い切れません。人の紹介・検索など記事以外のこともあります）。' + (F.allFrom ? 'フォロワー数の記録は ' + md(F.allFrom) + ' からで、さかのぼっては取れません。' : '');
+    var art = function (a) { return link('「' + String(a[1]).slice(0, 36) + '」', a[3]); };
+    put('trigRank', F.rank.length ? F.rank.map(function (r, i) { return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('span', { class: 'rank r' + (i + 1), text: i + 1 }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: '公開 ' + md(r[2]) }), el('span', { text: '増えた日 ' + r[5] + '日' }), isNum(r[6]) ? el('span', { text: fmt(r[6]) + ' PV' }) : null, isNum(r[7]) ? el('span', { text: '♥ ' + fmt(r[7]) }) : null])]), el('div', { class: 'big num' }, ['+' + fmt(r[4]), el('small', { text: '人（目安）' })])]); })
+      : empty('🌱', F.records < 2 ? 'フォロワーの記録をためています' : 'この期間に増えた日はありません', F.records < 2 ? '毎日の自動取得でフォロワー数が2日分以上たまると出ます。' : ''));
+    put('trigDays', F.days.slice(0, 12).map(function (d) {
+      return el('div', { class: 'trig' }, [el('div', { class: 'h' }, [d[3] > 1 ? md(d[1]) + '→' + md(d[0]) : mdw(d[0]), chip('+' + d[2] + '人', 'up'), d[3] > 1 ? chip(d[3] + '日分の増加', 'wait') : null, d[5] ? chip('はじめての人 ' + d[5] + '人', 'new') : null]),
+        el('div', { class: 'a' }, d[4].length ? d[4].map(function (a) { return el('div', {}, [art(a), el('span', { class: 'hint', text: ' 公開 ' + md(a[2]) + (isNum(a[4]) ? '・' + fmt(a[4]) + ' PV' : '') + (isNum(a[5]) ? '・♥ ' + a[5] : '') })]); }) : [el('span', { class: 'hint', text: 'その前の3日に公開した記事はありません' })]),
+        d[6].length ? el('div', { class: 'hint', text: 'はじめてスキ・コメントしてくれた人：' + d[6].map(function (f) { return f[0]; }).join('・') + (d[5] > d[6].length ? ' ほか' : '') }) : null]);
+    }));
+  }
+
+  /* ---------- CSV（UTF-8・BOMつき。Excel でも文字化けしない） ---------- */
+  function csvCell(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number') return isFinite(v) ? String(v) : '';
+    var s = String(v);
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s;   // 表計算ソフトで式として動かないように
+    return /[",\r\n]/.test(s) || /^\s|\s$/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csvText(rows) { return '\uFEFF' + rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n'; }
+  function saveCsv(name, rows) {
+    var text = csvText(rows);
+    try {
+      var blob = new Blob([text], { type: 'text/csv;charset=utf-8' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; a.rel = 'noopener'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      status('csvStatus', name + ' を書き出しました（' + (rows.length - 1) + '行）。ダウンロードされないときは「コピー」を使ってください。', 'ok');
+    } catch (e) { status('csvStatus', 'この画面ではダウンロードできませんでした。「コピー」を押して、スプレッドシートに貼り付けてください。', 'err'); }
+  }
+  function copyCsv(rows) { copyText(csvText(rows).replace(/^\uFEFF/, ''), 'CSVをコピーしました（' + (rows.length - 1) + '行）。スプレッドシートやメモ帳に貼り付けてください。'); }
+  function csvArticles() {
+    return [['公開日', 'タイトル', 'URL', 'スキ', 'コメント', '全期間PV', '前日のPV', 'スキ率(%)', '1日で増えたスキ', '7日で増えたスキ']].concat((D.articles || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]]; }));
+  }
+  function csvDaily() {
+    var R = MINE.data.range;
+    return [['日付', 'PV（日次の合計）', 'スキされた数', 'フォロワー（その日の最後の記録）', 'スキ率(%)']].concat(R.series.map(function (r) { return [r[0], r[1], r[2], r[3], r[4]]; }));
+  }
+  function csvFans(F) { return [['順位', 'ニックネーム', 'ID', 'プロフィールURL', 'スキした記事数', 'コメント数', '最初のスキ', '最後のスキ', '最後のコメント', 'はじめて']].concat(F.rows.map(function (r) { return [r[0], r[1], r[2], r[3], r[4], r[10], r[6], r[7], r[11], r[9]]; })); }
+  function withFans(fn) {
+    var R = MINE.data.range, key = R.from + '|' + R.to; if (MINE.fans[key]) return fn(MINE.fans[key]);
+    status('csvStatus', 'ファンの順位を集計しています…');
+    call('naWebFanRange', [R.from, R.to], function (r) { if (!r || !r.ok) { status('csvStatus', (r && r.message) || '集計できませんでした。', 'err'); return; } MINE.fans[key] = r; status('csvStatus', ''); fn(r); }, 'csvStatus');
+  }
+  function renderCsv() {
+    var R = MINE.data.range, span = R.from.replace(/-/g, '') + '-' + R.to.replace(/-/g, ''), row = function (title, sub, dl, cp, id) {
+      return el('div', { class: 'csvrow' }, [el('div', { class: 'b' }, [title, el('small', { text: sub })]), el('button', { class: 'mini g', type: 'button', 'data-csv': id, onclick: dl }, 'ダウンロード'), el('button', { class: 'mini', type: 'button', 'data-csvcopy': id, onclick: cp }, 'コピー')]);
+    };
+    put('csvBtns', [row('記事の数字', '全' + fmt((D.articles || []).length) + '本（スキ・コメント・PV・スキ率）', function () { saveCsv('note_articles.csv', csvArticles()); }, function () { copyCsv(csvArticles()); }, 'articles'),
+      row('毎日の合計', md(R.from) + '〜' + md(R.to) + '（' + R.days + '日・記録がない日は空欄）', function () { saveCsv('note_daily_' + span + '.csv', csvDaily()); }, function () { copyCsv(csvDaily()); }, 'daily'),
+      D.fans ? row('ファンの順位', md(R.from) + '〜' + md(R.to) + 'のスキ・コメント（上位300人まで）', function () { withFans(function (F) { saveCsv('note_fans_' + span + '.csv', csvFans(F)); }); }, function () { withFans(function (F) { copyCsv(csvFans(F)); }); }, 'fans') : null,
+      el('div', { class: 'hint', text: 'ファイルはこの端末にだけ保存されます。ファンの一覧は個人の名前を含むので、公開・共有しないでください。' })]);
   }
 
   /* ---------- 予定帳 ---------- */
@@ -1303,6 +1625,8 @@
     if (!D || !D.ok || !D.target) return;
     if (!$('t-home').classList.contains('hidden')) trendChart($('trend'), (D.home || {}).trend || []);
     drawCmpCharts();
+    var fs = (D.followerSeries || []).filter(function (x) { return isNum(x[1]); }); if ($('folSub')) $('folSub').textContent = fs.length ? '記録 ' + (fs.length > 1 ? md(fs[0][0]) + '〜' + md(fs[fs.length - 1][0]) : md(fs[0][0])) + '（' + fs.length + '日分・90日まで）' : '';
+    if (!$('t-mine').classList.contains('hidden')) drawMineCharts();
     if (!$('t-more').classList.contains('hidden') && !$('s-ana').classList.contains('hidden')) {
       lineChart($('chartFollowers'), [{ name: 'フォロワー', color: '#2FB9A2', pts: D.followerSeries || [] }], { area: true, label: 'フォロワー推移', emptyText: 'データが2日分以上たまるとグラフになります（毎日の自動取得をオンにしてください）。' });
       lineChart($('chartLikes'), [{ name: 'スキ合計', color: '#F0627A', pts: D.likeSeries || [] }], { area: true, label: 'スキ合計の推移', emptyText: 'データが2日分以上たまるとグラフになります。' });
@@ -1311,7 +1635,7 @@
   var rT = null; window.addEventListener('resize', function () { clearTimeout(rT); rT = setTimeout(drawCharts, 150); });
   function render(d) {
     D = d; $('skel').classList.add('hidden');
-    FAN.range.cache = {}; FAN.range.data = null; PH.cache = {}; if (FAN.period === 'range' && d.ok && d.fans) loadFanRange();   // 取得し直したら、期間指定も集計し直す
+    FAN.range.cache = {}; FAN.range.data = null; PH.cache = {}; MINE.cache = {}; MINE.data = null; MINE.fixed = null; MINE.fans = {}; if (!$('t-mine').classList.contains('hidden') && d.ok && d.target) setTimeout(loadMine, 0); if (FAN.period === 'range' && d.ok && d.fans) loadFanRange();   // 取得し直したら、期間指定も集計し直す
     if (!d.ok) { $('setup').classList.remove('hidden'); $('setup').textContent = d.message; $('sub').textContent = 'エラー'; return; }
     D.drafts = d.drafts || { reply: {}, thanks: {}, ideas: null };
     $('sub').textContent = 'v' + d.version + '｜' + (d.own ? '@' + d.own : '自分のID: 未設定') + (d.bench.length ? '｜比較: ' + d.bench.join(', ') : '') + '｜' + (d.source === 'RSS' ? 'RSS' : d.source === 'GitHub' ? 'GitHub/Colab' : '公開JSON');

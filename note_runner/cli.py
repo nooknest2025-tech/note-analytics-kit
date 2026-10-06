@@ -1,6 +1,7 @@
 """実行の入口。GitHub Actions: python -m note_runner ／ Colab: note_runner.cli.colab_main()
 秘密（Cookie・合言葉・受け取りURL）は環境変数か getpass でだけ受け取り、画面・ログ・ファイルには出しません。"""
 import argparse
+import re
 import json
 import os
 import sys
@@ -34,7 +35,18 @@ class Redactor:
         print(t, file=self.stream, flush=True)
 
 
-def chunk_payloads(out, run_id, source, started_ms, requests, message, has_cookie=False):
+REPO_RE = re.compile(r"^[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$")
+
+
+def repo_of(env):
+    """GitHub Actions で動いているときだけ「持ち主/名前」（シートのトークン登録の初期値に使う）。形が違えば送らない"""
+    if (env or {}).get("GITHUB_ACTIONS") != "true":
+        return ""
+    r = (env.get("GITHUB_REPOSITORY") or "").strip()
+    return r if REPO_RE.fullmatch(r) else ""
+
+
+def chunk_payloads(out, run_id, source, started_ms, requests, message, has_cookie=False, repo=""):
     D = out["dash"]
     # PV をスキップしても Cookie があれば authState=ok。受け取り側は skipped のとき前回 cookie を引き継ぐため、
     # 以前 none のままだと「NOTE_SESSIONがありません」が残り続ける。
@@ -57,6 +69,8 @@ def chunk_payloads(out, run_id, source, started_ms, requests, message, has_cooki
     fin = base()
     fin.update({"profiles": out["profiles"], "details": out["details"], "likersAt": out["likersAt"], "likersChecked": out["likersChecked"],
                 "commentersAt": out["commentersAt"], "commentersChecked": out["commentersChecked"], "log": log, "final": True})
+    if repo and REPO_RE.fullmatch(repo):
+        fin["repo"] = repo
     bodies.append(fin)
     for i, b in enumerate(bodies):
         b["chunk"], b["chunks"] = i + 1, len(bodies)
@@ -118,7 +132,7 @@ def run(env, argv=None, source="github", log_stream=None, opener=None, sender=No
     http = Client(cookie_value=cookie, interval_sec=P["interval"], sleep=sleep, opener=opener)
     out = fetch.run(http, P, started, log, has_cookie=bool(cookie), dash_off=bool(a.no_dashboard))
     msg = fetch.summary_message(out, http.requests)
-    bodies = chunk_payloads(out, uuid.uuid4().hex[:12], source, started, http.requests, msg, has_cookie=bool(cookie))
+    bodies = chunk_payloads(out, uuid.uuid4().hex[:12], source, started, http.requests, msg, has_cookie=bool(cookie), repo=repo_of(env))
     # 念のため：送るデータに Cookie・トークンが絶対に入っていないこと
     blob = json.dumps(bodies, ensure_ascii=False)
     for x in [cookie_raw, cookie, http.token, secret]:

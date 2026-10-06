@@ -1,3 +1,5 @@
+// note分析キット  作者：TAKU（https://github.com/nooknest2025-tech/note-analytics-kit）
+// 個人で無料で使うのは自由です。販売・作者名の削除・無断の再配布は禁止（くわしくは LICENSE）。
 /* ===== Gemini 共通コード（資料の型ワークベンチ v1.0.0 から自動で取り込み。ここは直接編集しない） ===== */
 
 var SW_DEFAULT_MODEL = 'gemini-3.8-flash';          // 2026-10 時点: 無料枠あり（公式 pricing ページで確認）
@@ -226,7 +228,7 @@ function naCallOtherAi_(provider, prompt, st) {
 }
 
 /* ===== note分析シート：共通ロジック（Apps Script とテストで共用。GAS の API は使わない） ===== */
-var NA_VERSION = '1.6.3';
+var NA_VERSION = '1.7.0';
 var NA_API = 'https://note.com/api';
 var NA_PAGE_SIZE = 6;            // 一覧 API は 1 ページ 6 件（2026-10 時点で確認）
 var NA_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -582,17 +584,23 @@ function naCompare(all, creators, opt) {
     var r = naAnalyze(all, { now: opt.now, days: opt.days, creator: c.id, snaps: opt.snaps, pv: [] });
     var hist = (opt.history || []).filter(function (h) { return h.creator === c.id; }).sort(function (a, b) { return a.t - b.t; });
     var last = hist.length ? hist[hist.length - 1] : null;
-    var d30 = hist.filter(function (h) { return h.t >= opt.now - 30 * NA_DAY_MS; });
-    var growth = (last && d30.length >= 2 && naHas(d30[0], 'followers') && naHas(last, 'followers')) ? last.followers - d30[0].followers : null;
+    // v1.7.0：増減は「記録した日付」つき。記録が1日分だけなら増減は出さない（「記録は10/5から」）
+    var rc = naRecent30(all, c.id, hist, opt.now);
     var h = naBestOf(r.hour, 3);
     var wa = r.titlePatterns[0], tk = r.titlePatterns[1];
-    return { r: r, followers: last ? last.followers : null, growth: growth, bestHour: h ? h[0] : '', waShare: r.n ? Math.round(wa[1] / r.n * 100) : null, taikenShare: r.n ? Math.round(tk[1] / r.n * 100) : null };
+    var A = naFilterArticles(all, { now: opt.now, days: opt.days, creator: c.id, minAgeDays: 2 });
+    var aFrom = A.length ? naJst(Math.min.apply(null, A.map(function (a) { return a.publishMs; }))).date : '', aTo = A.length ? naJst(Math.max.apply(null, A.map(function (a) { return a.publishMs; }))).date : '';
+    return { r: r, followers: last ? last.followers : null, growth: rc.follow.diff, growthText: rc.followText, growthFrom: rc.follow.first ? rc.follow.first.date : '', growthTo: rc.follow.last ? rc.follow.last.date : '', growthDays: rc.follow.days, recent: rc,
+      artFrom: aFrom, artTo: aTo, bestHour: h ? h[0] : '', waShare: r.n ? Math.round(wa[1] / r.n * 100) : null, taikenShare: r.n ? Math.round(tk[1] / r.n * 100) : null };
   });
   var rows = [
     ['フォロワー（最新）', function (s) { return s.followers; }],
-    ['フォロワー増減（30日）', function (s) { return s.growth; }],
+    ['フォロワー増減（直近30日の記録）', function (s) { return s.growth === null ? s.growthText : naSignedNum(s.growth) + '（' + naMdDate(s.growthFrom) + '→' + naMdDate(s.growthTo) + '・' + s.growthDays + '日）'; }],
     ['分析した記事数', function (s) { return s.r.n; }],
-    ['投稿ペース（本/週・直近30日）', function (s) { return s.r.summary.postsPerWeek; }],
+    ['分析した記事の公開日', function (s) { return s.artFrom ? naMdDate(s.artFrom) + '〜' + naMdDate(s.artTo) : ''; }],
+    ['直近30日の記事数', function (s) { return s.recent.postsText; }],
+    ['直近30日に公開した記事のスキ（平均）', function (s) { return s.recent.avgLikes === null ? '' : s.recent.avgLikes + '（' + s.recent.nLikes + '本）'; }],
+    ['投稿ペース（本/週）', function (s) { return s.r.summary.postsPerWeek; }],
     ['スキ中央値', function (s) { return s.r.summary.likesMedian; }],
     ['スキ平均', function (s) { return s.r.summary.likesMean; }],
     ['コメント中央値', function (s) { return s.r.summary.commentsMedian; }],
@@ -605,6 +613,62 @@ function naCompare(all, creators, opt) {
     ['24時間のスキ（中央値・推定）', function (s) { return s.r.velocitySummary.d1Median; }]
   ].map(function (d) { return [d[0]].concat(stats.map(function (s) { var v = d[1](s); return v === null || v === undefined ? '' : v; })); });
   return { header: header, rows: rows, stats: stats };
+}
+
+/* ---------- v1.7.0 期間・増減の文章（数字には実際の日付を添える） ---------- */
+function nmAdd_(d, n) { return naJst(naParseTime(d) + n * NA_DAY_MS).date; }
+function nmDiff_(a, b) { return Math.round((naParseTime(b) - naParseTime(a)) / NA_DAY_MS); }
+function nmMd_(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(naStr(d)); return m ? (+m[2]) + '/' + (+m[3]) : naStr(d); }
+function nmSigned_(n) { return n > 0 ? '+' + n.toLocaleString('ja-JP') : n < 0 ? '−' + Math.abs(n).toLocaleString('ja-JP') : '±0'; }
+function nmR1_(x) { return Math.round(x * 10) / 10; }
+function nmMed_(a) { return naMedian(a); }
+function nmPct_(a, p) { var s = a.filter(function (x) { return typeof x === 'number' && isFinite(x); }).sort(function (x, y) { return x - y; }); if (!s.length) return null; return s[Math.min(s.length - 1, Math.max(0, Math.floor(p * (s.length - 1) + 0.5)))]; }
+function nmDay_(s, label) {
+  var t = naStr(s); if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) throw naError('INPUT', (label || '日付') + 'を選んでください。');
+  var ms = naParseTime(t); if (!isFinite(ms) || naJst(ms).date !== t) throw naError('INPUT', '日付を読み取れませんでした。カレンダーから選び直してください。');
+  return t;
+}
+
+/* 増減：points＝[[日付, 値]]（日付順・その日の最後の値）。期間の最初と最後の記録の差と、実際の日付 */
+function naChangeOf(points) {
+  var p = (points || []).filter(function (x) { return x && typeof x[1] === 'number' && isFinite(x[1]); });
+  if (!p.length) return { n: 0, diff: null, days: 0, first: null, last: null };
+  var a = p[0], b = p[p.length - 1];
+  return { n: p.length, first: { date: a[0], v: a[1] }, last: { date: b[0], v: b[1] }, diff: p.length > 1 ? b[1] - a[1] : null, days: nmDiff_(a[0], b[0]) };
+}
+/* 例：「1日で +2人（10/5→10/6）」「記録は10/5から（増減は明日から）」 */
+function naChangeText(ch, unit) {
+  unit = unit || '';
+  if (!ch || !ch.n) return 'まだ記録がありません';
+  if (ch.n < 2 || ch.days < 1) return '記録は' + nmMd_(ch.first.date) + 'から（増減は明日から）';
+  return ch.days + '日で ' + nmSigned_(ch.diff) + unit + '（' + nmMd_(ch.first.date) + '→' + nmMd_(ch.last.date) + '）';
+}
+/* 「直近◯日」は、その日数ぶんの記録があるときだけ。足りないときは「記録がある◯日分」 */
+function naWindowText(wanted, from, to, covered) {
+  if (!covered) return 'まだ記録がありません';
+  var span = from === to ? nmMd_(from) : nmMd_(from) + '〜' + nmMd_(to);
+  return covered >= wanted ? '直近' + wanted + '日（' + span + '）' : '記録がある' + covered + '日分（' + span + '）';
+}
+function naSignedNum(n) { return n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '±0'; }
+function naMdDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(naStr(d)); return m ? (+m[2]) + '/' + (+m[3]) : naStr(d); }
+/* v1.7.0：直近30日（今日を含む30日）を、記事の公開日時から数える（ベンチマークも同じ）。
+ * 取得できた記事が30日より短い期間しかカバーしていないときは、実際にわかる日数と日付を返す。
+ * スキの平均は、この30日に公開して2日以上たった記事だけ（何本か）。フォロワーの増減は、30日以内の最初と最後の記録 */
+function naRecent30(all, creator, hist, now) {
+  var today = naJst(now).date, from = naJst(now - 29 * NA_DAY_MS).date, mine = all.filter(function (a) { return a.creator === creator && isFinite(a.publishMs) && a.publishMs > 0; });
+  var oldest = Infinity; mine.forEach(function (a) { if (a.publishMs < oldest) oldest = a.publishMs; });
+  var cover = 30, coverFrom = from;
+  if (isFinite(oldest) && naJst(oldest).date > from) { coverFrom = naJst(oldest).date; cover = Math.round((naParseTime(today) - naParseTime(coverFrom)) / NA_DAY_MS) + 1; }
+  var inWin = mine.filter(function (a) { var d = naJst(a.publishMs).date; return d >= from && d <= today; });
+  var aged = inWin.filter(function (a) { return typeof a.likes === 'number' && now - a.publishMs >= 2 * NA_DAY_MS; });
+  var avg = aged.length ? Math.round(aged.reduce(function (s, a) { return s + a.likes; }, 0) / aged.length * 10) / 10 : null;
+  var cAged = aged.filter(function (a) { return typeof a.comments === 'number'; });
+  var pts = {}; (hist || []).filter(function (h) { return h.creator === creator && naHas(h, 'followers') && h.t >= now - 30 * NA_DAY_MS; }).sort(function (a, b) { return a.t - b.t; }).forEach(function (h) { pts[naJst(h.t).date] = h.followers; });
+  var fol = naChangeOf(Object.keys(pts).sort().map(function (d) { return [d, pts[d]]; }));
+  var postsText = !mine.length ? '' : cover >= 30 ? inWin.length + '本（' + naMdDate(from) + '〜' + naMdDate(today) + '）' : inWin.length + '本（取得できた記事でわかる' + cover + '日分：' + naMdDate(coverFrom) + '〜' + naMdDate(today) + '）';
+  return { from: from, to: today, cover: cover, coverFrom: coverFrom, posts: inWin.length, postsText: postsText, avgLikes: avg, nLikes: aged.length,
+    avgComments: cAged.length ? Math.round(cAged.reduce(function (s, a) { return s + a.comments; }, 0) / cAged.length * 10) / 10 : null,
+    follow: fol, followText: naChangeText(fol, '人') };
 }
 
 /* フォロワー推移のピボット（日付 × クリエイター、その日の最後の値） */
@@ -1535,6 +1599,7 @@ function niNextSteps_(res, input, arts, now) {
  *   オフのとき（初期状態）は Cookie・ログイン情報は使わず、PV は手入力か貼り付けで記録します。
  * - スキ・コメント・フォロー・投稿などの自動操作は一切しません（読むだけ）。
  * - 取得したデータは自分の分析用です。公開・転載しないでください。
+ * 作成: タク（業務改善で時短｜AI活用）
  */
 var NA_SHEETS = { settings: '設定', articles: '記事', snaps: '記事推移', history: 'クリエイター推移', pv: 'PV入力', paste: 'PV貼り付け',
   analysis: '分析', compare: '比較', ai: 'AIレポート', log: '取得ログ',
@@ -1583,7 +1648,10 @@ var NA_SETTINGS = [
   ['PVの自動取得（自分のCookie）', 'いいえ', '「はい」にすると、メニュー「noteのCookieを登録」で登録した自分のCookie（取得方法が GitHub のときは、GitHub の Secrets「NOTE_SESSION」に入れた Cookie。シートには登録しません）で、ログイン中のダッシュボードの数字（記事ごとのビュー・スキ・コメント）を1日1回だけ取得して「PV入力」に記録します。READMEの「PVの自動取得」の注意を必ず読んでから'],
   ['インプレッション等も取る（新ダッシュボード）', 'はい', '前日1日分の、記事ごとのインプレッション・ページビュー（スキ・コメント・売上も取れれば）を取ります。graphql.note.com には Cookie ではなく、Cookie から発行される30分ほどの一時トークンを送ります。いやなら「いいえ」'],
   ['PV自動取得：最大ページ数', 30, '旧集計（stats/pv）は1ページ＝10記事（最大' + NA_DASH_MAX_PAGES + '）。新ダッシュボードは1ページ＝50記事（最大' + NA_GQL_MAX_PAGES + '）。間隔は3秒以上あけます'],
-  ['共有中でもCookie取得を実行する', 'いいえ', 'このスプレッドシートを自分以外と共有しているときは、安全のため Cookie を使った取得をしません。「はい」は自己責任での上書きです（おすすめしません）']
+  ['共有中でもCookie取得を実行する', 'いいえ', 'このスプレッドシートを自分以外と共有しているときは、安全のため Cookie を使った取得をしません。「はい」は自己責任での上書きです（おすすめしません）'],
+  ['今月の目標：PV', '', 'ダッシュボードのホーム「今月の目標」から入れられます（ここに直接書いてもOK）。空欄なら目標なし。毎月同じ目標を使います'],
+  ['今月の目標：スキ', '', '今月スキされた数の目標（自分のスキは数えません）。空欄なら目標なし'],
+  ['今月の目標：フォロワーの増加', '', '今月フォロワーを何人増やしたいか。空欄なら目標なし']
 ];
 var NA_ART_COLS = ['クリエイター', '記事キー', 'タイトル', 'URL', '公開日', '公開時刻', '曜日', '時', '種類', '有料', '価格', 'スキ', 'コメント', 'ハッシュタグ数', 'ハッシュタグ',
   'タイトル文字数', '本文文字数（無料部分）', '見出し数', '画像数', '固定記事', '初回取得', '最終取得', '公開日時(ms)', 'スキした人を確認した時点のスキ数', 'コメントした人を確認した時点のコメント数'];
@@ -1724,6 +1792,7 @@ function naResetPasteSheet_(ps, result) {
   ps.getRange(5, 1, 1, 1).setValues([['↓ ここ（A6）から下に貼り付け']]);
 }
 
+function naGoalNum_(v) { var n = Number(naZen2Han(naStr(v)).replace(/[,\s]/g, '')); return naStr(v) !== '' && isFinite(n) && n > 0 ? Math.floor(n) : null; }
 /* ---------- 設定を読む ---------- */
 function naGetSettings_() {
   var map = {};
@@ -1750,6 +1819,7 @@ function naGetSettings_() {
     days: Math.max(0, parseInt(g('分析する期間（日）'), 10) || 0),
     commenters: naStr(g('コメントした人を記録（自分の記事だけ）')) !== 'いいえ',
     likers: naStr(g('誰からのスキを記録（自分の記事だけ）')) !== 'いいえ', likerPages: Math.min(NA_MAX_LIKER_PAGES, Math.max(1, parseInt(g('スキした人：1記事あたりの最大ページ数'), 10) || NA_MAX_LIKER_PAGES)),
+    goals: { pv: naGoalNum_(g('今月の目標：PV')), likes: naGoalNum_(g('今月の目標：スキ')), followers: naGoalNum_(g('今月の目標：フォロワーの増加')) },
     model: naStr(g('Geminiモデル')) || SW_DEFAULT_MODEL, fallback: naStr(g('予備モデル')), temperature: '',
     aiProvider: naAiProviderId(g('AIの種類')), openaiModel: naStr(g('ChatGPTのモデル')) || NA_AI.openai.model, claudeModel: naStr(g('Claudeのモデル')) || NA_AI.claude.model,
     style: { tone: naToneOf(g('返信の口調')), memo: naStr(g('自分らしさメモ')) },
@@ -2402,6 +2472,8 @@ function naGetDashboard() {
       out.compare = { header: c.header, rows: c.rows };
       // 比較タブ（v1.4.0）：投稿ペース・スキ中央値などを横に並べる数字と、直近90日（13週）の推移
       out.cmp = { ids: ids, days: st.days, people: c.stats.map(function (s, i) { return { id: ids[i], own: creators[i].own, followers: s.followers, growth: s.growth, n: s.r.n,
+        growthText: s.growthText, growthFrom: s.growthFrom, growthTo: s.growthTo, growthDays: s.growthDays, artFrom: s.artFrom, artTo: s.artTo,
+        recent: { from: s.recent.from, to: s.recent.to, cover: s.recent.cover, coverFrom: s.recent.coverFrom, posts: s.recent.posts, avgLikes: s.recent.avgLikes, nLikes: s.recent.nLikes, avgComments: s.recent.avgComments },
         pace: s.r.summary.postsPerWeek, median: s.r.summary.likesMedian, comments: s.r.summary.commentsMedian, d1: s.r.velocitySummary.d1Median, bestHour: s.bestHour }; }),
         weekly: naWeeklyPosts(all, ids, now, 13), followers: naFollowerPivot(hist, ids, 90, now) };
     }
@@ -2418,6 +2490,9 @@ function naGetDashboard() {
       out.ins = naInsights({ now: now, own: st.own, likes: naLoadLikes_(), comments: naLoadComments_(), articles: all.filter(function (x) { return x.creator === st.own; }), artRows: st.target === st.own ? arts : [], history: ownHist, actions: naLoadActions_(), unreplied: out.home.unrepliedCount || 0, pick: (out.fans.all || []).map(function (r) { return r[2]; }) });
       out.actions = naLoadActions_().slice(-200).map(function (a) { return [a.urlname, naJst(a.t).date]; });
     } catch (e) { out.insError = e.message; } }
+    try {   // v1.7.0：週のふり返り・今月の目標・異変のお知らせ（記録したデータだけ。AIは使わない）
+      var mk = naMineDash_(st, { all: all, pv: pv, hist: hist, snaps: snaps, now: now }); out.review = mk.review; out.goals = mk.goals; out.alerts = mk.alerts;
+    } catch (e) { out.mineError = e.message; }
     out.pvArticles = all.filter(function (x) { return x.creator === (st.own || st.target); }).sort(function (a, b) { return b.publishMs - a.publishMs; }).slice(0, 60).map(function (x) { return [x.key, x.date + '｜' + x.title.slice(0, 40)]; });
     return out;
   } catch (e) { return { ok: false, message: e.message }; }
@@ -2501,9 +2576,11 @@ function naGhFetch_(method, path, body) {
   try { json = txt ? JSON.parse(txt) : null; } catch (e) { json = null; }
   return { code: code, json: json };
 }
+var NA_GH_CHECKS = '\n確認すること：\n1. リポジトリ名：GitHub で自分のリポジトリを開いたときのアドレスの「github.com/」のあと（例: taro/note-analytics-kit）。大文字・小文字も同じに\n2. トークンの「Repository access」：Only select repositories で、そのリポジトリを選んでいるか\n3. トークンの「Permissions」：Actions が「Read and write」になっているか（Metadata は自動で Read-only）\n直したら、メニュー「GitHub の取得ボタン用トークンを登録」でもう一度登録してください。';
 function naGhErrMsg_(code) {
   if (code === 401) return 'GitHub のトークンが無効か、期限切れです。新しく作って登録し直してください。';
-  if (code === 403 || code === 404) return 'GitHub のトークンに、このリポジトリの「Actions：読み書き」の権限がないようです（またはリポジトリ名の間違い）。';
+  if (code === 404) return 'GitHub でリポジトリが見つかりませんでした（404）。リポジトリ名が違うか、トークンでそのリポジトリを選んでいない可能性があります。' + NA_GH_CHECKS;
+  if (code === 403) return 'GitHub に断られました（403）。トークンに、このリポジトリの「Actions：Read and write」の権限がないようです。' + NA_GH_CHECKS;
   if (code === 422) return 'GitHub が実行を受け付けませんでした（ワークフローに「手動実行」が設定されていない可能性）。';
   return 'GitHub に接続できませんでした（' + code + '）。少し待ってからもう一度押してください。';
 }
@@ -2539,19 +2616,24 @@ function naWebGhStatus(beforeId) {
   if (!naWebAllowed_()) return { ok: false, message: NA_WEB_DENY };
   try { var r = naGhLatestRun_(); if (!r.ok) return r; r.isNew = !!(r.run && (!beforeId || r.run.id !== beforeId)); return r; } catch (e) { return { ok: false, message: e.message }; }
 }
+/* v1.7.0：トークン登録の初期値。① 登録ずみ ② GitHub から届いたデータにあった「持ち主/名前」 */
+function naGhDefaultRepo_() { var cur = naGhRepo_(); if (naGhValidRepo_(cur)) return cur; var rx = {}; try { rx = naRxLast_(); } catch (e) { rx = {}; } return naGhValidRepo_(rx.repo) ? rx.repo : ''; }
+function naGhRepoFromText_(t) { return naStr(t).replace(/^\s+|\s+$/g, '').replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/^github\.com\//i, '').replace(/\.git$/, '').replace(/[?#].*$/, '').split('/').slice(0, 2).join('/').replace(/\/+$/, ''); }
 function naGhTokenDialog() {
-  var ui = SpreadsheetApp.getUi(), cur = naGhStatus_();
-  var r1 = ui.prompt('GitHub の取得ボタン用トークン（1/2）', 'リポジトリ名を「持ち主/名前」の形で入れてください（例: yourname/note-analytics-runner）。' + (cur.repo ? '\nいまの登録: ' + cur.repo + '（空のままOKで、そのまま使います）' : ''), ui.ButtonSet.OK_CANCEL);
+  var ui = SpreadsheetApp.getUi(), cur = naGhStatus_(), def = naGhDefaultRepo_(), rx = {}; try { rx = naRxLast_(); } catch (e) { rx = {}; }
+  if (!rx.at) { var go = ui.alert('先に ④ を終わらせてください', 'このトークンは「ダッシュボードのボタンから GitHub の取得を動かす」ためのおまけです。\nまだ GitHub からデータが一度も届いていません。先に手順書の ④（NA_RECEIVER_URL と NA_RECEIVER_SECRET の2つを GitHub に登録して Run workflow）を終わらせてください。\n\nそれでも続けますか？', ui.ButtonSet.YES_NO); if (go !== ui.Button.YES) return; }
+  var r1 = ui.prompt('GitHub の取得ボタン用トークン（1/2）', 'GitHub で自分のリポジトリ（④で「Use this template」で作った場所）を開いたときの、アドレスの「github.com/」のあとを入れてください。\n例: アドレスが https://github.com/taro/note-analytics-kit なら「taro/note-analytics-kit」（アドレスをそのまま貼ってもOK）' + (def ? '\n\n' + (cur.repo ? 'いまの登録' : 'GitHub から届いたデータによると') + ': ' + def + '（空のままOKで、これを使います）' : ''), ui.ButtonSet.OK_CANCEL);
   if (r1.getSelectedButton() !== ui.Button.OK) return;
-  var repo = naStr(r1.getResponseText()).replace(/^https:\/\/github\.com\//, '').replace(/\/+$/, '') || cur.repo;
-  if (!naGhValidRepo_(repo)) { ui.alert('リポジトリ名の形が正しくありません（例: yourname/note-analytics-runner）。'); return; }
+  var repo = naGhRepoFromText_(r1.getResponseText()) || def;
+  if (!naGhValidRepo_(repo)) { ui.alert('リポジトリ名の形が正しくありません。「持ち主/名前」の形です（例: taro/note-analytics-kit）。GitHub で自分のリポジトリを開いて、アドレスの github.com/ のあとをコピーしてください。'); return; }
   var r2 = ui.prompt('GitHub の取得ボタン用トークン（2/2）', 'GitHub で作った「Fine-grained トークン」（github_pat_…）を貼り付けてください。\n・対象はこのリポジトリだけ、権限は「Actions：Read and write」だけにしてください。\n・保存先はこのスクリプトの「ユーザー プロパティ」（あなた本人だけ）。シートには書きません。送り先は api.github.com だけです。' + (cur.hasToken ? '\nいまの登録: 末尾 …' + cur.tokenTail : ''), ui.ButtonSet.OK_CANCEL);
   if (r2.getSelectedButton() !== ui.Button.OK) return;
   var tok = naStr(r2.getResponseText());
   if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(tok)) { ui.alert('トークンの形が正しくありません（github_pat_ で始まる文字です）。'); return; }
   var up = naUserProps_(); up.setProperty(NA_PROP_GH_REPO, repo); up.setProperty(NA_PROP_GH_TOKEN, tok);
   var t = naGhLatestRun_();
-  ui.alert(t.ok ? '登録しました（末尾 …' + tok.slice(-4) + '）。ダッシュボードの「今すぐ取得する」で GitHub の取得が動きます。' + (t.run ? '\n前回の実行: ' + t.run.label + ' ' + t.run.startedJp : '') : '登録しましたが、確認でエラーになりました：' + t.message);
+  ui.alert(t.ok ? '登録しました（末尾 …' + tok.slice(-4) + '）。ダッシュボードの「今すぐ取得する」で GitHub の取得が動きます。' + (t.run ? '\n前回の実行: ' + t.run.label + ' ' + t.run.startedJp : '') : '登録しましたが、確認でエラーになりました（リポジトリ: ' + repo + '）：\n' + t.message);
+  try { naGuideRefresh_(true); } catch (e) { }
 }
 function naGhTokenDeleteMenu() { var up = naUserProps_(); up.deleteProperty(NA_PROP_GH_TOKEN); naAlert_('GitHub のトークンを削除しました', 'GitHub 側のトークンも、GitHub の「Settings → Developer settings → Fine-grained tokens」で削除できます。'); }
 
@@ -2965,7 +3047,8 @@ function naRxData_(b, st) {
     // Cookie の状態：今回 PV を取りに行かなかった（skipped・空）ときは、前回の状態と最後に PV が取れた時刻を引き継ぐ
     var ck = V.log.cookie || '', keepCk = ck === 'skipped' || ck === '';
     naUserProps_().setProperty(NA_RX_UPROP_LAST, JSON.stringify({ at: now, source: V.sourceLabel, result: V.log.result, cookie: keepCk ? (prev.cookie || ck) : ck,
-      cookieReason: ck === 'invalid' ? naRxS200_(V.log.cookieReason) : (keepCk ? naRxS200_(prev.cookieReason) : ''), dashOk: V.log.dashOk ? now : (Number(prev.dashOk) || 0) }));
+      cookieReason: ck === 'invalid' ? naRxS200_(V.log.cookieReason) : (keepCk ? naRxS200_(prev.cookieReason) : ''), dashOk: V.log.dashOk ? now : (Number(prev.dashOk) || 0),
+      repo: V.repo || (naGhValidRepo_(prev.repo) ? prev.repo : '') }));
   }
   if (b.final) {
     var props = PropertiesService.getScriptProperties();
@@ -3033,7 +3116,8 @@ function naRxValidate_(b, st) {
     message: S(b.log.message, 3000), startedAt: N(b.log.startedAt, 946684800000, 4102444800000), cookie: ['ok', 'invalid', 'none', 'skipped'].indexOf(S(b.log.authState, 10)) >= 0 ? S(b.log.authState, 10) : '',
     cookieReason: S(b.log.authReason, 200), dashOk: !!b.log.dashOk };   // 送る側の項目名は authState（「cookie」を含む項目名は拒否するため）
   return { profiles: profiles, articles: articles, details: details, snaps: snaps, likers: likers, likersAt: likersAt, commenters: commenters, commentersAt: commentersAt, pv: pv, log: log, bad: bad,
-    likersChecked: !!b.likersChecked, commentersChecked: !!b.commentersChecked, sourceLabel: S(b.source, 10) === 'colab' ? 'Colab' : 'GitHub' };
+    likersChecked: !!b.likersChecked, commentersChecked: !!b.commentersChecked, sourceLabel: S(b.source, 10) === 'colab' ? 'Colab' : 'GitHub',
+    repo: naGhValidRepo_(S(b.repo, 141)) ? S(b.repo, 141) : '' };   // v1.7.0：GitHub Actions から届いたときの「持ち主/名前」（トークン登録の初期値に使うだけ）
 }
 
 /* ---------- メニュー：合言葉を作る・削除する ---------- */
@@ -3116,6 +3200,20 @@ function naDeployState_() {
 }
 var NA_DEPLOY_HOW = '拡張機能 → Apps Script → 右上の青い「デプロイ」→「新しいデプロイ」→ 種類「ウェブアプリ」・アクセスできるユーザー「全員」→ 最後に出てくる「ウェブアプリ」のURLを1回開く（手順書の③）';
 var NA_DEPLOY_PRIVATE = '公開はできていますが、アクセスが「全員」になっていません。Apps Script の「デプロイ」→「デプロイを管理」→ 鉛筆 → バージョン「新バージョン」・アクセスできるユーザー「全員」→「デプロイ」';
+var NA_GUIDE_STEP4 = 'メニュー「GitHub に登録する2つを表示」→ GitHub でキットを開いて「Use this template」で自分のリポジトリを作る → Settings → Secrets and variables → Actions →「New repository secret」で NA_RECEIVER_URL と NA_RECEIVER_SECRET の【2つとも】登録（Name 欄に名前、Secret 欄に中身。1つずつ2回）→ Actions → Run workflow（手順書の④）';
+/* ④ がまだのとき：取得ボタン用トークンがあれば、GitHub の最後の実行を見て「動いたのに届いていない」を知らせる（メニューから更新したときだけ。受け取り中は見に行かない） */
+var NA_GUIDE_CHECK_GH = false;
+function naGuideNoDataHint_() {
+  if (!NA_GUIDE_CHECK_GH) return '';
+  try {
+    var gs = naGhStatus_(); if (!gs.hasToken || !naGhValidRepo_(gs.repo)) return '';
+    var t = naGhLatestRun_(); if (!t.ok) return '\n⚠ GitHub の状態を確かめられませんでした：' + t.message;
+    if (!t.run) return '\n⚠ GitHub ではまだ一度も実行されていません。Actions → note-fetch → Run workflow を押してください。';
+    if (t.run.status !== 'completed') return '\n（GitHub で実行中です：' + t.run.label + '）';
+    if (t.run.conclusion === 'success') return '\n⚠ GitHub の実行は成功しています（' + t.run.startedJp + '）が、データが届いていません。NA_RECEIVER_URL と NA_RECEIVER_SECRET の【2つとも】登録されているか、名前のつづり（すべて大文字・アンダーバー）と、中身の貼りまちがい（前後の空白・途中まで）を確かめてください。';
+    return '\n⚠ GitHub の実行が「' + t.run.label + '」でした（' + t.run.startedJp + '）。GitHub の Actions で赤い×の実行を開くと、理由が日本語で出ています。';
+  } catch (e) { return ''; }
+}
 function naGuideSteps_() {
   var st = {}; try { st = naGetSettings_(); } catch (e) { st = {}; }
   var up = naUserProps_(), rx = {}; try { rx = naRxLast_(); } catch (e) { rx = {}; }
@@ -3126,8 +3224,9 @@ function naGuideSteps_() {
     { must: true, done: hasSheet, title: '① シートの準備', how: 'メニュー「note分析 → ▶ はじめる（かんたん設定）」を押す' },
     { must: true, done: !!st.own, title: '② 自分の note を登録', how: st.own ? '登録ずみ：' + st.own : '「▶ はじめる」で、自分の note のページのURLを貼る' },
     { must: true, done: !!url, title: '③ ダッシュボードを公開（1回だけ）', how: url ? '公開ずみ：' + url : dep.state === 'private' ? NA_DEPLOY_PRIVATE : dep.state === 'unknown' ? '公開されているか確かめられませんでした。少し待って、メニュー「はじめにのチェックを更新」を押してください' : NA_DEPLOY_HOW },
-    { must: true, done: !!rx.at, title: '④ GitHub につなぐ', how: rx.at ? '最後に届いた日時：' + naJst(rx.at).stamp : 'メニュー「GitHub に登録する2つを表示」→ GitHub で「Use this template」→ 2つを登録 → Run workflow（手順書の④）' },
+    { must: true, done: !!rx.at, title: '④ GitHub につなぐ', how: rx.at ? '最後に届いた日時：' + naJst(rx.at).stamp : NA_GUIDE_STEP4 + naGuideNoDataHint_() },
     { must: false, done: aiKey, title: '（おまけ）AIの下書き', how: aiKey ? '登録ずみ' : 'やりたい人だけ：メニュー「AIのAPIキーを登録」（Gemini は無料）' },
+    { must: false, done: !!(naGhValidRepo_(naStr(up.getProperty(NA_PROP_GH_REPO))) && up.getProperty(NA_PROP_GH_TOKEN)), title: '（おまけ）ダッシュボードの取得ボタン（④のあと）', how: up.getProperty(NA_PROP_GH_TOKEN) ? '登録ずみ：' + naStr(up.getProperty(NA_PROP_GH_REPO)) : 'やりたい人だけ・④が終わってから：GitHub で Fine-grained トークン（そのリポジトリだけ・Actions の Read and write）を作り、メニュー「GitHub の取得ボタン用トークンを登録」' + (rx.repo ? '（リポジトリ名は ' + rx.repo + '）' : '') },
     { must: false, done: !!rx.dashOk, title: '（おまけ）PVの自動取得', how: rx.dashOk ? '最後に取れた日時：' + naJst(rx.dashOk).stamp : 'やりたい人だけ：GitHub に NOTE_SESSION を登録（手順書のおまけ）' }
   ];
 }
@@ -3157,7 +3256,7 @@ function naGuideRefresh_(onlyIfExists) {
   } catch (e) { /* 見た目だけ */ }
   return { left: mustLeft, steps: steps };
 }
-function naGuideRefreshMenu() { var r = naGuideRefresh_(); try { naBook_().getSheetByName(NA_GUIDE_SHEET).activate(); } catch (e) { } naAlert_('「はじめに」を更新しました', r.left ? 'あと ' + r.left + ' つです。' : '準備完了です 🎉'); return r; }
+function naGuideRefreshMenu() { NA_GUIDE_CHECK_GH = true; var r; try { r = naGuideRefresh_(); } finally { NA_GUIDE_CHECK_GH = false; } try { naBook_().getSheetByName(NA_GUIDE_SHEET).activate(); } catch (e) { } naAlert_('「はじめに」を更新しました', r.left ? 'あと ' + r.left + ' つです。' : '準備完了です 🎉'); return r; }
 
 /* 「設定」シートの値を項目名で書きかえる（行がなければ何もしない） */
 function naPutSetting_(name, value) {
@@ -3214,12 +3313,13 @@ function naShowGithubValues() {
       '<button style="margin-top:6px" onclick="var i=document.getElementById(\'v' + id + '\');i.select();document.execCommand(\'copy\');this.textContent=\'コピーしました ✓\'">中身をコピー</button></div>';
   };
   var html = '<div style="font-family:sans-serif;font-size:13px;line-height:1.6">' +
-    '<p>GitHub の <b>Settings → Secrets and variables → Actions → New repository secret</b> で、下の2つを1つずつ登録します（「名前」と「中身」をそれぞれ貼る）。</p>' +
+    '<p>GitHub の自分のリポジトリで <b>Settings → Secrets and variables → Actions → New repository secret</b> を押すと、「<b>Name</b>」と「<b>Secret</b>」の2つの欄が出ます。<b>Name に「名前」、Secret に「中身」</b>を貼って「Add secret」。これを<b>2回</b>（下の①と②）くり返します。</p>' +
+    '<p style="color:#b45309"><b>2つとも必要です。</b>1つだけだと、GitHub の実行は成功してもシートにデータが届きません。登録が終わると、一覧に NA_RECEIVER_SECRET と NA_RECEIVER_URL の2行が並びます。</p>' +
     (v.url ? box(1, '① URL', 'NA_RECEIVER_URL', v.url) : v.deploy === 'private' ? '<p style="color:#b45309"><b>① URL はまだ使えません。</b>' + NA_DEPLOY_PRIVATE + '。そのあと、このメニューをもう一度開いてください。</p>' : '<p style="color:#b45309"><b>① URL がまだありません。</b>先に手順書の ③（ダッシュボードを公開）をして、最後に出てくる「ウェブアプリ」のURLを1回開いてから、このメニューをもう一度開いてください。</p>') +
     box(2, '② 合言葉', 'NA_RECEIVER_SECRET', v.secret) +
     '<p style="color:#b00">この2つは人に見せない・SNSやチャットに貼らないでください。</p>' +
     '<p><button onclick="google.script.host.close()">閉じる</button></p></div>';
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(600).setHeight(v.url ? 520 : 420), 'GitHub に登録する2つ');
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(600).setHeight(v.url ? 600 : 500), 'GitHub に登録する2つ');
   try { naGuideRefresh_(); } catch (e) { }
   return { hasUrl: !!v.url };
 }
@@ -3511,4 +3611,361 @@ function naWebLogAction(urlname, nickname) {
       return { ok: true, logged: true, message: '記録しました。14日のうちにスキやコメントがあれば「効果」に出ます。', actions: naLoadActions_() };
     });
   } catch (e) { return { ok: false, message: e.message }; }
+}
+
+/* ---------- v1.7.0 自分の分析：期間の推移と前の期間比・記事の伸び方・何が効いているか・見直し候補・フォロワーが増えたきっかけ・
+ * 週のふり返り・今月の目標・異変のお知らせ ----------
+ * ルール：数字には「実際の期間と日付」と「何本・何日分か」を必ず添える。記録がない日は推定しない（0 にもしない）。
+ * スキは「スキした人」の記録（note が返す、スキした日）から数えるので、記録を始める前の分もさかのぼって数えられる。
+ * PV とフォロワー数は、さかのぼって取れないので「記録した日」だけで数える。AI は使わない（ルールで決める）。 */
+var NM_POINTS = [1, 3, 7, 30];   // 公開から何日目（公開日＝0日目。その日の終わりまで）
+/* window の中の増減：基準は「window の最初の日より前、3日以内の最後の記録」。なければ window の中の最初の記録 */
+function nmWindowChange_(points, from, to) {
+  var inside = points.filter(function (x) { return x[0] >= from && x[0] <= to; }), base = null;
+  points.forEach(function (x) { if (x[0] < from && nmDiff_(x[0], from) <= 3) base = x; });
+  return naChangeOf(base ? [base].concat(inside) : inside);
+}
+
+/* ---------- 材料をそろえる（シートから読んだものを、計算しやすい形に） ----------
+ * I = { now, own, arts(自分の記事), likes, comments, pv(PV入力の行), hist(自分のフォロワーの記録), snaps(自分の記事推移) } */
+function naMineIndex(I) {
+  var me = naStr(I.own).toLowerCase(), art = {}, X = { now: I.now, today: naJst(I.now).date, arts: (I.arts || []).filter(function (a) { return a && a.key && isFinite(a.publishMs) && a.publishMs > 0; }) };
+  X.arts.forEach(function (a) { art[a.key] = a; }); X.art = art;
+  // PV：日次（記事ごと・日ごと。同じ日・同じ記事は最後の行）と全期間（記事ごとの最新）
+  var pvDay = {}, pvTot = {};
+  (I.pv || []).forEach(function (p) {
+    if (!p || !p.key || !art[p.key] || p.pv === '' || p.pv === null || p.pv === undefined || !isFinite(p.t)) return;
+    var v = naNum(p.pv); if (!isFinite(v)) return;
+    if (p.period === '日次') { var d = naJst(p.t).date; (pvDay[d] = pvDay[d] || {})[p.key] = v; }
+    else if (p.period === '全期間' && (!pvTot[p.key] || p.t >= pvTot[p.key].t)) pvTot[p.key] = { t: p.t, pv: v };
+  });
+  X.pvDay = pvDay; X.pvDays = Object.keys(pvDay).sort(); X.pvTot = {}; X.pvTotDate = '';
+  Object.keys(pvTot).forEach(function (k) { X.pvTot[k] = pvTot[k].pv; var d = naJst(pvTot[k].t).date; if (d > X.pvTotDate) X.pvTotDate = d; });
+  X.pvDaySum = {}; X.pvDays.forEach(function (d) { var s = 0; for (var k in pvDay[d]) s += pvDay[d][k]; X.pvDaySum[d] = s; });
+  // スキ：スキした人の記録（自分の記事・自分のスキは除く・同じ記事の同じ人は1回）
+  var seen = {}, likeDays = {}, likeByKey = {}, first = {}, nick = {}, firstLike = '', recFrom = '';
+  (I.likes || []).forEach(function (l) {
+    if (!l || !art[l.key] || !l.urlname || naStr(l.urlname).toLowerCase() === me || !(l.likedMs > 0)) return;
+    var id = l.key + '|' + l.urlname; if (seen[id]) return; seen[id] = true;
+    var d = naJst(l.likedMs).date; likeDays[d] = (likeDays[d] || 0) + 1; (likeByKey[l.key] = likeByKey[l.key] || []).push(d);
+    var u = naStr(l.urlname).toLowerCase(); if (!first[u] || d < first[u].date) first[u] = { date: d, u: l.urlname }; if (l.nickname) nick[u] = l.nickname;
+    if (!firstLike || d < firstLike) firstLike = d;
+    if (l.recordedMs > 0) { var rd = naJst(l.recordedMs).date; if (!recFrom || rd < recFrom) recFrom = rd; }
+  });
+  (I.comments || []).forEach(function (c) {
+    if (!c || !c.urlname || c.byOwner || naStr(c.urlname).toLowerCase() === me || !(c.commentedMs > 0) || !art[c.key]) return;
+    var d = naJst(c.commentedMs).date, u = naStr(c.urlname).toLowerCase();
+    if (!first[u] || d < first[u].date) first[u] = { date: d, u: c.urlname }; if (c.nickname && !nick[u]) nick[u] = c.nickname;
+  });
+  Object.keys(likeByKey).forEach(function (k) { likeByKey[k].sort(); });
+  X.likeDays = likeDays; X.likeByKey = likeByKey; X.firstAct = first; X.nick = nick; X.likeFrom = firstLike; X.likeRecFrom = recFrom;
+  var rec = 0, cur = 0; X.arts.forEach(function (a) { if (typeof a.likes === 'number') { cur += a.likes; rec += Math.min(a.likes, (likeByKey[a.key] || []).length); } });
+  X.likeCompleteness = cur > 0 ? Math.round(rec / cur * 100) : null; X.hasLikers = Object.keys(seen).length > 0;
+  // 記事推移（スキの記録。記事ごと・時刻順）
+  var sn = {}; (I.snaps || []).forEach(function (s) { if (s && art[s.key] && s.t) (sn[s.key] = sn[s.key] || []).push(s); });
+  Object.keys(sn).forEach(function (k) { sn[k].sort(function (a, b) { return a.t - b.t; }); }); X.snaps = sn;
+  // フォロワー：日ごとの最後の値
+  var fm = {}; (I.hist || []).filter(function (h) { return h && typeof h.followers === 'number' && isFinite(h.followers) && h.t; }).sort(function (a, b) { return a.t - b.t; }).forEach(function (h) { fm[naJst(h.t).date] = h.followers; });
+  X.fol = Object.keys(fm).sort().map(function (d) { return [d, fm[d]]; });
+  // 一番古い記事の公開日（スキの「0件の日」を数えてよいのは、この日から）
+  X.firstPub = ''; X.arts.forEach(function (a) { var d = naJst(a.publishMs).date; if (!X.firstPub || d < X.firstPub) X.firstPub = d; });
+  return X;
+}
+function nmPvOn_(X, d) { return X.pvDaySum[d] === undefined ? null : X.pvDaySum[d]; }
+function nmLikesOn_(X, d) { if (!X.hasLikers || !X.firstPub || d < X.firstPub || d > X.today) return null; return X.likeDays[d] || 0; }
+
+/* ---------- 1. 期間の推移と、前の同じ長さの期間との比較 ---------- */
+function nmAgg_(X, from, to) {
+  var pvSum = 0, pvDays = [], lk = 0, lkDays = 0, lkOnPv = 0;
+  for (var d = from; d <= to; d = nmAdd_(d, 1)) {
+    var p = nmPvOn_(X, d), l = nmLikesOn_(X, d);
+    if (p !== null) { pvSum += p; pvDays.push(d); if (l !== null) lkOnPv += l; }
+    if (l !== null) { lk += l; lkDays++; }
+  }
+  var fol = nmWindowChange_(X.fol, from, to);
+  return { from: from, to: to, days: nmDiff_(from, to) + 1,
+    pv: { sum: pvDays.length ? pvSum : null, days: pvDays.length, first: pvDays[0] || '', last: pvDays[pvDays.length - 1] || '' },
+    likes: { sum: lkDays ? lk : null, days: lkDays },
+    followers: { diff: fol.diff, n: fol.n, text: naChangeText(fol, '人'), from: fol.first ? fol.first.date : '', to: fol.last ? fol.last.date : '', last: fol.last ? fol.last.v : null, days: fol.days },
+    rate: { likes: lkOnPv, pv: pvSum, pct: pvSum > 0 ? nmR1_(lkOnPv / pvSum * 100) : null, days: pvDays.length } };
+}
+/* 前の期間比。記録した日数がちがうときは「1日あたり」でくらべる */
+function nmCmp_(cur, prev, curDays, prevDays) {
+  if (cur === null || prev === null || !curDays || !prevDays) return null;
+  var perDay = curDays !== prevDays, a = perDay ? cur / curDays : cur, b = perDay ? prev / prevDays : prev;
+  return { diff: perDay ? nmR1_(a - b) : cur - prev, pct: b > 0 ? Math.round((a - b) / b * 100) : null, perDay: perDay, curDays: curDays, prevDays: prevDays };
+}
+function naMineRange(X, from, to) {
+  from = nmDay_(from, '開始日'); to = nmDay_(to, '終了日');
+  if (from > to) { var x = from; from = to; to = x; }
+  var days = nmDiff_(from, to) + 1;
+  if (days > 1100) throw naError('INPUT', '期間は3年までにしてください。');
+  var prevTo = nmAdd_(from, -1), prevFrom = nmAdd_(from, -days), series = [], fm = {};
+  X.fol.forEach(function (p) { fm[p[0]] = p[1]; });
+  for (var d = from; d <= to; d = nmAdd_(d, 1)) {
+    var p = nmPvOn_(X, d), l = nmLikesOn_(X, d);
+    series.push([d, p, l, fm[d] === undefined ? null : fm[d], p > 0 && l !== null ? nmR1_(l / p * 100) : null]);
+  }
+  var cur = nmAgg_(X, from, to), prev = nmAgg_(X, prevFrom, prevTo);
+  var cmp = { pv: nmCmp_(cur.pv.sum, prev.pv.sum, cur.pv.days, prev.pv.days), likes: nmCmp_(cur.likes.sum, prev.likes.sum, cur.likes.days, prev.likes.days),
+    followers: cur.followers.diff !== null && prev.followers.diff !== null ? { diff: cur.followers.diff - prev.followers.diff } : null,
+    rate: cur.rate.pct !== null && prev.rate.pct !== null ? { diff: nmR1_(cur.rate.pct - prev.rate.pct) } : null };
+  var notes = [];
+  var pvFrom = X.pvDays[0] || '', folFrom = X.fol.length ? X.fol[0][0] : '';
+  if (!pvFrom) notes.push('PVの記録はまだありません（「PVの自動取得」をオンにするか、「記録」で貼り付けると出ます）。');
+  else if (cur.pv.days < days) notes.push('PVの記録があるのは、この期間のうち ' + cur.pv.days + '日分' + (cur.pv.days ? '（' + nmMd_(cur.pv.first) + '〜' + nmMd_(cur.pv.last) + '）' : '') + 'です。PVの記録は ' + nmMd_(pvFrom) + ' からで、さかのぼっては取れません。');
+  if (!folFrom) notes.push('フォロワー数の記録はまだありません。');
+  else if (folFrom > from) notes.push('フォロワー数の記録は ' + nmMd_(folFrom) + ' からです（さかのぼっては取れません）。');
+  if (X.hasLikers) notes.push('スキは「スキした人」の記録（スキした日）から数えています。さかのぼって取れた分も入ります' + (X.likeCompleteness !== null ? '（記録できたのは今のスキ数の ' + X.likeCompleteness + '%）' : '') + '。');
+  else notes.push('スキの日ごとの数は「誰からのスキを記録」を「はい」にすると出ます。');
+  return { from: from, to: to, days: days, prevFrom: prevFrom, prevTo: prevTo, series: series, cur: cur, prev: prev, cmp: cmp, notes: notes,
+    cover: { pvFrom: pvFrom, pvTo: X.pvDays[X.pvDays.length - 1] || '', folFrom: folFrom, folTo: X.fol.length ? X.fol[X.fol.length - 1][0] : '', likeFrom: X.likeFrom, likeRecFrom: X.likeRecFrom, likeCompleteness: X.likeCompleteness } };
+}
+
+/* ---------- 2. 記事の伸び方（公開から 1・3・7・30日目まで） ----------
+ * スキ：その記事の「スキした人」をほぼ全部（今のスキ数の9割以上）記録できている記事は、スキした日から数える（さかのぼれる）。
+ *       それ以外は、記事推移（毎日のスキ数）にその日の記録がある記事だけ。
+ * PV：日次の記録が公開日からその日まで毎日そろっている記事だけ（その日に記録があり、その記事の行がない日は 0 PV）。 */
+function nmLikesAt_(X, a, n) {
+  var pub = naJst(a.publishMs).date, end = nmAdd_(pub, n), endMs = naParseTime(nmAdd_(end, 1));
+  if (endMs > X.now) return null;   // まだその日が終わっていない
+  var rec = X.likeByKey[a.key] || [];
+  if (typeof a.likes === 'number' && a.likes > 0 && rec.length >= a.likes * 0.9) { var c = 0; rec.forEach(function (d) { if (d <= end) c++; }); return c; }
+  if (typeof a.likes === 'number' && a.likes === 0) return 0;
+  var s = X.snaps[a.key] || [], hit = null;
+  s.forEach(function (x) { if (!hit && x.t >= endMs && x.t <= endMs + 18 * NA_HOUR_MS) hit = x; });
+  return hit ? hit.likes : null;
+}
+function nmPvAt_(X, a, n) {
+  var pub = naJst(a.publishMs).date, end = nmAdd_(pub, n);
+  if (naParseTime(nmAdd_(end, 1)) > X.now) return null;
+  var sum = 0;
+  for (var d = pub; d <= end; d = nmAdd_(d, 1)) { var day = X.pvDay[d]; if (!day) return null; sum += day[a.key] || 0; }
+  return sum;
+}
+function nmType_(v3, v30) {
+  if (v3 === null || v30 === null || v30 < 5) return '';
+  var r = v3 / v30; return r >= 0.7 ? 'dash' : r <= 0.4 ? 'slow' : 'mid';
+}
+function naGrowthCurves(X) {
+  var rows = [], agg = { pv: NM_POINTS.map(function () { return []; }), likes: NM_POINTS.map(function () { return []; }) }, types = { dash: 0, mid: 0, slow: 0 };
+  X.arts.slice().sort(function (a, b) { return b.publishMs - a.publishMs; }).forEach(function (a) {
+    var pv = NM_POINTS.map(function (n) { return nmPvAt_(X, a, n); }), lk = NM_POINTS.map(function (n) { return nmLikesAt_(X, a, n); });
+    if (!pv.some(function (v) { return v !== null; }) && !lk.some(function (v) { return v !== null; })) return;
+    var t = nmType_(lk[1], lk[3]), basis = 'likes'; if (!t) { t = nmType_(pv[1], pv[3]); basis = t ? 'pv' : ''; }
+    if (t) types[t]++;
+    pv.forEach(function (v, i) { if (v !== null) agg.pv[i].push(v); }); lk.forEach(function (v, i) { if (v !== null) agg.likes[i].push(v); });
+    rows.push([a.key, a.title, naJst(a.publishMs).date, a.url, pv, lk, t, basis]);
+  });
+  var med = function (list) { return list.map(function (v, i) { return { day: NM_POINTS[i], n: v.length, median: nmMed_(v) }; }); };
+  return { points: NM_POINTS, rows: rows.slice(0, 120), total: rows.length, nPv: rows.filter(function (r) { return r[4].some(function (v) { return v !== null; }); }).length,
+    nLikes: rows.filter(function (r) { return r[5].some(function (v) { return v !== null; }); }).length, pv: med(agg.pv), likes: med(agg.likes), types: types,
+    typed: types.dash + types.mid + types.slow, articles: X.arts.length };
+}
+
+/* ---------- 3. 何が効いているか（曜日・時間帯・タイトルの長さ・ハッシュタグ・無料/有料） ----------
+ * スキ：公開から2日以上の全記事（全期間）。PV・スキ率：全期間PVの記録がある記事だけ（PVの記録の範囲）。 */
+function naWhatWorks(X) {
+  var A = X.arts.filter(function (a) { return typeof a.likes === 'number' && X.now - a.publishMs >= 2 * NA_DAY_MS; });
+  var group = function (labels, keyFn) {
+    return labels.map(function (label, i) {
+      var g = A.filter(function (a) { return keyFn(a) === i; }), gp = g.filter(function (a) { return typeof X.pvTot[a.key] === 'number'; });
+      var lk = naMean(g.map(function (a) { return a.likes; })), sp = 0, sl = 0; gp.forEach(function (a) { sp += X.pvTot[a.key]; sl += a.likes; });
+      return [label, g.length, lk, gp.length, gp.length ? Math.round(sp / gp.length) : null, sp > 0 ? nmR1_(sl / sp * 100) : null, g.length > 0 && g.length < 5];
+    });
+  };
+  var out = { n: A.length, nPv: A.filter(function (a) { return typeof X.pvTot[a.key] === 'number'; }).length, pvDate: X.pvTotDate,
+    from: A.length ? naJst(Math.min.apply(null, A.map(function (a) { return a.publishMs; }))).date : '', to: A.length ? naJst(Math.max.apply(null, A.map(function (a) { return a.publishMs; }))).date : '' };
+  out.weekday = group(NA_WEEKDAYS.map(function (w) { return w + '曜'; }), function (a) { return a.weekday; });
+  out.hour = group(['0〜2時', '3〜5時', '6〜8時', '9〜11時', '12〜14時', '15〜17時', '18〜20時', '21〜23時'], function (a) { return Math.floor(a.hour / 3); });
+  out.titleLen = group(['〜20字', '21〜30字', '31〜40字', '41〜60字', '61字〜'], function (a) { return naBucket(a.titleLen, [20, 30, 40, 60]); });
+  out.tagCount = group(['なし', '1〜3個', '4〜7個', '8〜15個', '16個〜'], function (a) { return naHas(a, 'hashtagCount') ? naBucket(a.hashtagCount, [0, 3, 7, 15]) : -1; });
+  out.paid = group(['無料', '有料'], function (a) { return a.paid === null || a.paid === undefined ? -1 : a.paid ? 1 : 0; });
+  var tags = {}; A.forEach(function (a) { (a.hashtags || []).forEach(function (t) { t = naStr(t); if (t) (tags[t] = tags[t] || []).push(a); }); });
+  var tagRows = Object.keys(tags).map(function (t) { var g = tags[t], gp = g.filter(function (a) { return typeof X.pvTot[a.key] === 'number'; }), sp = 0, sl = 0; gp.forEach(function (a) { sp += X.pvTot[a.key]; sl += a.likes; });
+    return [t, g.length, naMean(g.map(function (a) { return a.likes; })), gp.length, gp.length ? Math.round(sp / gp.length) : null, sp > 0 ? nmR1_(sl / sp * 100) : null, g.length < 5]; });
+  out.tags = tagRows.filter(function (r) { return r[1] >= 2; }).sort(function (a, b) { return b[1] - a[1] || (b[2] || 0) - (a[2] || 0); }).slice(0, 15);
+  return out;
+}
+
+/* ---------- 4. 見直し候補：期間に公開した記事の PV とスキ率 ---------- */
+function naOpportunity(X, from, to) {
+  var all = X.arts.filter(function (a) { var d = naJst(a.publishMs).date; return d >= from && d <= to; });
+  var young = all.filter(function (a) { return X.now - a.publishMs < 3 * NA_DAY_MS; }).length;
+  var pts = all.filter(function (a) { return X.now - a.publishMs >= 3 * NA_DAY_MS && typeof a.likes === 'number' && X.pvTot[a.key] > 0; })
+    .map(function (a) { var pv = X.pvTot[a.key]; return [a.key, a.title, naJst(a.publishMs).date, a.url, pv, a.likes, nmR1_(a.likes / pv * 100)]; });
+  var n = pts.length, res = { from: from, to: to, published: all.length, young: young, noPv: all.length - young - n, n: n, points: pts.slice(0, 300), pvDate: X.pvTotDate, medPv: null, medRate: null, lowReact: [], lowRead: [], strict: n >= 8 };
+  if (n < 2) return res;
+  var pvs = pts.map(function (p) { return p[4]; }), rates = pts.map(function (p) { return p[6]; });
+  res.medPv = nmMed_(pvs); res.medRate = nmR1_(nmMed_(rates));
+  var lo = res.strict ? nmPct_(rates, 0.25) : res.medRate, hi = res.strict ? nmPct_(rates, 0.75) : res.medRate;
+  res.lowReact = pts.filter(function (p) { return p[4] >= res.medPv && p[6] <= lo && p[6] < res.medRate; }).sort(function (a, b) { return b[4] - a[4]; }).slice(0, 5);
+  res.lowRead = pts.filter(function (p) { return p[4] <= res.medPv && p[6] >= hi && p[6] > res.medRate; }).sort(function (a, b) { return b[6] - a[6] || b[5] - a[5]; }).slice(0, 5);
+  return res;
+}
+
+/* ---------- 6. フォロワーが増えた日と、その前3日に出した記事（目安。原因とは言い切れない） ---------- */
+function naFollowerTriggers(X, from, to) {
+  var F = X.fol, days = [], score = {}, noArt = 0;
+  for (var i = 1; i < F.length; i++) {
+    var d = F[i][0], g = F[i][1] - F[i - 1][1];
+    if (g <= 0 || d < from || d > to) continue;
+    var arts = X.arts.filter(function (a) { var p = naJst(a.publishMs).date; return p <= d && p >= nmAdd_(d, -3); }).sort(function (a, b) { return b.publishMs - a.publishMs; });
+    var fans = []; Object.keys(X.firstAct).forEach(function (u) { if (X.firstAct[u].date === d) fans.push([X.nick[u] || X.firstAct[u].u, X.firstAct[u].u]); });
+    if (!arts.length) noArt++;
+    arts.forEach(function (a) { var s = score[a.key] = score[a.key] || { a: a, v: 0, days: 0 }; s.v += g / arts.length; s.days++; });
+    days.push([d, F[i - 1][0], g, nmDiff_(F[i - 1][0], d), arts.slice(0, 4).map(function (a) { return [a.key, a.title, naJst(a.publishMs).date, a.url, X.pvTot[a.key] === undefined ? null : X.pvTot[a.key], typeof a.likes === 'number' ? a.likes : null]; }), fans.length, fans.slice(0, 5)]);
+  }
+  var rank = Object.keys(score).map(function (k) { var s = score[k], a = s.a; return [a.key, a.title, naJst(a.publishMs).date, a.url, nmR1_(s.v), s.days, X.pvTot[a.key] === undefined ? null : X.pvTot[a.key], typeof a.likes === 'number' ? a.likes : null]; })
+    .sort(function (a, b) { return b[4] - a[4] || b[5] - a[5]; }).slice(0, 10);
+  var inR = F.filter(function (p) { return p[0] >= from && p[0] <= to; });
+  return { from: from, to: to, records: inR.length, recFrom: inR.length ? inR[0][0] : '', recTo: inR.length ? inR[inR.length - 1][0] : '', allFrom: F.length ? F[0][0] : '',
+    gainDays: days.length, noArticleDays: noArt, days: days.reverse().slice(0, 30), rank: rank };
+}
+
+/* ---------- 7. この1週間のふり返り（今日を含む7日と、その前の7日） ---------- */
+function nmKeyLikesIn_(X, key, from, to) { var c = 0; (X.likeByKey[key] || []).forEach(function (d) { if (d >= from && d <= to) c++; }); return c; }
+function nmKeyPvIn_(X, key, from, to) { var s = 0, any = false; X.pvDays.forEach(function (d) { if (d >= from && d <= to) { any = true; s += X.pvDay[d][key] || 0; } }); return any ? s : null; }
+function naWeeklyReview(X, curves) {
+  var to = X.today, from = nmAdd_(to, -6), pTo = nmAdd_(from, -1), pFrom = nmAdd_(pTo, -6);
+  var cur = nmAgg_(X, from, to), prev = nmAgg_(X, pFrom, pTo);
+  var posts = X.arts.filter(function (a) { var d = naJst(a.publishMs).date; return d >= from && d <= to; });
+  // いちばん読まれた記事（PVの記録があればPV、なければこの7日に増えたスキ）
+  var best = null, byPv = cur.pv.days > 0;
+  X.arts.forEach(function (a) {
+    var v = byPv ? nmKeyPvIn_(X, a.key, from, to) : (X.hasLikers ? nmKeyLikesIn_(X, a.key, from, to) : null);
+    if (v !== null && v > 0 && (!best || v > best.v)) best = { a: a, v: v };
+  });
+  // 伸び悩み：この14日に出した記事で、同じ日数のふだん（中央値）より少ない
+  var weak = null, med = {}; ((curves && curves.likes) || []).forEach(function (p) { med[p.day] = p.median; });
+  X.arts.forEach(function (a) {
+    var age = (X.now - a.publishMs) / NA_DAY_MS; if (age < 2 || age > 14 || typeof a.likes !== 'number') return;
+    var pt = age >= 8 ? 7 : age >= 4 ? 3 : 1, m = med[pt]; if (!(m > 0)) return;
+    var at = nmLikesAt_(X, a, pt); if (at === null) return;
+    var r = at / m; if (r < 0.7 && (!weak || r < weak.r)) weak = { a: a, r: r, at: at, m: m, pt: pt };
+  });
+  var fans = []; Object.keys(X.firstAct).forEach(function (u) { var f = X.firstAct[u]; if (f.date >= from && f.date <= to) fans.push([X.nick[u] || f.u, f.u, f.date]); });
+  fans.sort(function (a, b) { return a[2] < b[2] ? 1 : -1; });
+  var pvCmp = nmCmp_(cur.pv.sum, prev.pv.sum, cur.pv.days, prev.pv.days), lkCmp = nmCmp_(cur.likes.sum, prev.likes.sum, cur.likes.days, prev.likes.days);
+  var A = function (a) { return [a.key, a.title, naJst(a.publishMs).date, a.url]; };
+  var res = { from: from, to: to, prevFrom: pFrom, prevTo: pTo, cur: cur, prev: prev, pvCmp: pvCmp, likesCmp: lkCmp, posts: posts.length,
+    best: best ? A(best.a).concat([best.v, byPv ? 'pv' : 'likes']) : null,
+    weak: weak ? A(weak.a).concat([weak.at, weak.m, weak.pt]) : null,
+    newFans: fans.length, fans: fans.slice(0, 8), next: [] };
+  // 次の一手（ルール。多くて3つ）
+  var nx = res.next, t = function (s) { return String(s).slice(0, 28); };
+  if (weak) nx.push(['weak', '「' + t(weak.a.title) + '」の冒頭とタイトルを見直す', '公開' + weak.pt + '日目までのスキが ' + weak.at + '（ふだんの真ん中は ' + weak.m + '）。最初の3行で「読むと何が得られるか」を伝えると変わるかも。', 'mine']);
+  if (best) nx.push(['best', '「' + t(best.a.title) + '」の続き・関連の記事を予定帳へ', 'この7日でいちばん' + (byPv ? '読まれた（' + best.v + ' PV）' : 'スキが増えた（+' + best.v + '）') + '記事です。同じテーマの次の1本は読まれやすいです。', 'plan']);
+  if (!posts.length) nx.push(['post', 'この7日は投稿がありません', 'まずは次の1本の日にちを予定帳に入れておきましょう。', 'plan']);
+  if (fans.length) nx.push(['fans', '新しく来てくれた ' + fans.length + '人の記事を読みに行く', fans.slice(0, 3).map(function (f) { return f[0]; }).join('・') + (fans.length > 3 ? ' ほか' : '') + '。お礼のきっかけに。', 'fan']);
+  if (pvCmp && pvCmp.pct !== null && pvCmp.pct <= -20) nx.push(['pv', 'PVが前の7日より ' + Math.abs(pvCmp.pct) + '%少なめ', '人気だった記事を、新しい記事の中で紹介すると、また読まれるきっかけになります。', 'art']);
+  res.next = nx.slice(0, 3);
+  return res;
+}
+
+/* ---------- 8. 今月の目標と、このペースでの月末の見こみ ---------- */
+function naGoalProgress(X, goals) {
+  goals = goals || {};
+  var today = X.today, mStart = today.slice(0, 8) + '01', y = +today.slice(0, 4), m = +today.slice(5, 7), dim = new Date(Date.UTC(y, m, 0)).getUTCDate(), mEnd = today.slice(0, 8) + (dim < 10 ? '0' : '') + dim;
+  var yday = nmAdd_(today, -1), upTo = yday >= mStart ? yday : '';   // PV・スキは前日まで（今日の分はまだ途中）
+  var out = { month: today.slice(0, 7), from: mStart, to: mEnd, daysInMonth: dim, goals: { pv: goals.pv || null, likes: goals.likes || null, followers: goals.followers || null }, items: [] };
+  var item = function (key, label, unit, val, used, usedFrom, usedTo, note) {
+    var goal = out.goals[key], proj = val !== null && used > 0 ? Math.round(val / used * dim) : null;
+    out.items.push({ key: key, label: label, unit: unit, value: val, goal: goal, pct: goal && val !== null ? Math.round(val / goal * 100) : null, projected: proj, projPct: goal && proj !== null ? Math.round(proj / goal * 100) : null,
+      days: used, from: usedFrom, to: usedTo, note: note });
+  };
+  // PV：今月の日次の記録の合計（記録がある日数で割って、月の日数をかける）
+  var pvDays = X.pvDays.filter(function (d) { return d >= mStart && d <= today; }), pv = 0; pvDays.forEach(function (d) { pv += X.pvDaySum[d]; });
+  item('pv', 'PV', '', pvDays.length ? pv : null, pvDays.length, pvDays[0] || '', pvDays[pvDays.length - 1] || '', pvDays.length ? '' : (X.pvDays.length ? '今月のPVの記録はまだありません' : 'PVの記録がありません'));
+  // スキ：今月スキされた数（前日まで。スキした人の記録から）
+  if (X.hasLikers && upTo) { var lk = 0, n = nmDiff_(mStart, upTo) + 1; for (var d = mStart; d <= upTo; d = nmAdd_(d, 1)) lk += X.likeDays[d] || 0; item('likes', 'スキ', '', lk, n, mStart, upTo, ''); }
+  else item('likes', 'スキ', '', null, 0, '', '', X.hasLikers ? '今月は今日からです（前日までの分で計算するので、明日から出ます）' : '「誰からのスキを記録」を「はい」にすると出ます');
+  // フォロワー：月はじめ（前月末の記録があればそれ）から最新まで
+  var base = null, inM = X.fol.filter(function (p) { return p[0] >= mStart && p[0] <= today; });
+  X.fol.forEach(function (p) { if (p[0] < mStart && nmDiff_(p[0], mStart) <= 3) base = p; });
+  var ch = naChangeOf(base ? [base].concat(inM) : inM);
+  item('followers', 'フォロワー', '人', ch.diff, ch.days, ch.first ? ch.first.date : '', ch.last ? ch.last.date : '', ch.n < 2 ? (ch.n ? '記録は' + nmMd_(ch.first.date) + 'から（増減は明日から）' : 'フォロワー数の記録がありません') : naChangeText(ch, '人'));
+  return out;
+}
+function naCleanGoals(g) {
+  g = g || {}; var out = {};
+  ['pv', 'likes', 'followers'].forEach(function (k) {
+    var s = naStr(g[k]).replace(/[,，\s]/g, '');
+    if (s === '') { out[k] = ''; return; }
+    var v = Number(naZen2Han(s)); if (!isFinite(v) || v < 0 || v > 1e9 || Math.floor(v) !== v) throw naError('INPUT', '目標は0以上の整数で入れてください（' + ({ pv: 'PV', likes: 'スキ', followers: 'フォロワー' })[k] + '）。');
+    out[k] = v;
+  });
+  return out;
+}
+
+/* ---------- 9. 異変のお知らせ（記事が急に読まれた・止まった・フォロワーが減った。ファンの「離れかけ」は画面で足す） ---------- */
+function naMineAlerts(X) {
+  var out = [], L = X.pvDays[X.pvDays.length - 1];
+  if (L && nmDiff_(L, X.today) <= 3) {
+    var before = X.pvDays.filter(function (d) { return d < L && nmDiff_(d, L) <= 7; }), last3 = X.pvDays.filter(function (d) { return d <= L && nmDiff_(d, L) < 3; }), prior = X.pvDays.filter(function (d) { var k = nmDiff_(d, L); return k >= 3 && k < 10; });
+    X.arts.forEach(function (a) {
+      var pub = naJst(a.publishMs).date; if (nmDiff_(pub, L) < 3) return;   // 公開直後はふつうに多い
+      var v = X.pvDay[L][a.key] || 0, avg = function (ds) { if (!ds.length) return null; var s = 0; ds.forEach(function (d) { s += X.pvDay[d][a.key] || 0; }); return s / ds.length; };
+      var b = before.length >= 3 ? avg(before) : null;
+      if (b !== null && v >= 20 && v >= 3 * Math.max(b, 1)) out.push({ id: 'spike:' + a.key + ':' + L, kind: 'spike', level: 'up', key: a.key, title: a.title, url: a.url, date: L, v: v, base: nmR1_(b),
+        text: nmMd_(L) + 'に ' + v + ' PV（その前の' + before.length + '日は1日平均 ' + nmR1_(b) + ' PV）。どこかで紹介されたのかもしれません。' });
+      var p = prior.length >= 4 && last3.length >= 2 ? avg(prior) : null, r = p !== null ? avg(last3) : null;
+      if (p !== null && nmDiff_(pub, L) >= 14 && p >= 10 && r <= p * 0.3) out.push({ id: 'stall:' + a.key + ':' + L, kind: 'stall', level: 'down', key: a.key, title: a.title, url: a.url, date: L, v: nmR1_(r), base: nmR1_(p),
+        text: '最近' + last3.length + '日は1日平均 ' + nmR1_(r) + ' PV（その前の' + prior.length + '日は ' + nmR1_(p) + ' PV）。検索や紹介からの流れが止まったのかもしれません。' });
+    });
+  }
+  // PVの記録がないときは、スキで「急に増えた」を見る（スキした人の記録・前日）
+  if (!out.length && X.hasLikers && !X.pvDays.length) {
+    var yd = nmAdd_(X.today, -1);
+    X.arts.forEach(function (a) {
+      if (X.now - a.publishMs < 7 * NA_DAY_MS) return;
+      var v = nmKeyLikesIn_(X, a.key, yd, yd), b = nmKeyLikesIn_(X, a.key, nmAdd_(yd, -14), nmAdd_(yd, -1)) / 14;
+      if (v >= 5 && v >= 4 * Math.max(b, 0.5)) out.push({ id: 'lspike:' + a.key + ':' + yd, kind: 'spike', level: 'up', key: a.key, title: a.title, url: a.url, date: yd, v: v, base: nmR1_(b),
+        text: nmMd_(yd) + 'に スキ ' + v + '（その前の14日は1日平均 ' + nmR1_(b) + '）。どこかで紹介されたのかもしれません。' });
+    });
+  }
+  var F = X.fol; if (F.length >= 2) { var a2 = F[F.length - 2], b2 = F[F.length - 1], dlt = b2[1] - a2[1];
+    if (dlt < 0 && nmDiff_(b2[0], X.today) <= 3) out.push({ id: 'fdrop:' + b2[0], kind: 'fdrop', level: 'down', date: b2[0], v: dlt, text: 'フォロワーが ' + nmSigned_(dlt) + '人（' + nmMd_(a2[0]) + '→' + nmMd_(b2[0]) + '）。数人の上下はよくあることです。続くときは最近の記事のテーマを見直してみましょう。' }); }
+  out.sort(function (x, y) { return (x.kind === 'fdrop' ? 0 : 1) - (y.kind === 'fdrop' ? 0 : 1) || (y.v || 0) - (x.v || 0); });
+  return out.slice(0, 6);
+}
+/* ---------- シートから材料を読む（GAS） ---------- */
+function naMineData_(st, pre) {
+  pre = pre || {};
+  var own = st.own || st.target, all = pre.all || naAllArticles_();
+  var I = { now: pre.now || Date.now(), own: own, arts: all.filter(function (a) { return a.creator === own; }),
+    likes: st.own && st.likers ? (pre.likes || naLoadLikes_()) : [], comments: st.own && st.commenters ? (pre.comments || naLoadComments_()) : [],
+    pv: (pre.pv || naLoadPv_()).filter(function (p) { return p.creator === own || !p.creator; }),
+    hist: (pre.hist || naLoadHistory_()).filter(function (h) { return h.creator === own; }), snaps: (pre.snaps || naLoadSnaps_()).filter(function (x) { return x.creator === own; }) };
+  return naMineIndex(I);
+}
+/* 「分析」タブ：期間（from〜to）の推移・前の期間比・見直し候補・フォロワーのきっかけ。withAll のときは伸び方・効くもの（期間によらない）も */
+function naWebMine(from, to, withAll) {
+  if (!naWebAllowed_()) return { ok: false, message: NA_WEB_DENY };
+  try {
+    var st = naGetSettings_();
+    if (!st.own && !st.target) return { ok: false, message: '「設定」で自分のクリエイターIDを入れると使えます。' };
+    var X = naMineData_(st), r = naMineRange(X, from, to);
+    var out = { ok: true, id: st.own || st.target, range: r, opp: naOpportunity(X, r.from, r.to), triggers: naFollowerTriggers(X, r.from, r.to), articles: X.arts.length };
+    if (withAll) { out.curves = naGrowthCurves(X); out.works = naWhatWorks(X); }
+    return out;
+  } catch (e) { return { ok: false, message: e.naCode === 'INPUT' ? e.message : '集計できませんでした：' + e.message }; }
+}
+/* ホームの「今月の目標」を保存（設定シートの3行。空欄＝目標なし） */
+function naWebSaveGoals(g) {
+  if (!naWebAllowed_()) return { ok: false, message: NA_WEB_DENY };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return { ok: false, message: 'ほかの処理の途中です。少し待ってからもう一度押してください。' };
+  try {
+    var v = naCleanGoals(g); naGetSettings_();   // 行がなければ足す
+    naPutSetting_('今月の目標：PV', v.pv); naPutSetting_('今月の目標：スキ', v.likes); naPutSetting_('今月の目標：フォロワーの増加', v.followers);
+    var st = naGetSettings_(), X = naMineData_(st);
+    return { ok: true, goals: naGoalProgress(X, st.goals) };
+  } catch (e) { return { ok: false, message: e.naCode === 'INPUT' ? e.message : '保存できませんでした：' + e.message }; }
+  finally { lock.releaseLock(); }
+}
+/* ダッシュボードを開いたときの小さな材料（週のふり返り・目標・お知らせ） */
+function naMineDash_(st, pre) {
+  var X = naMineData_(st, pre), curves = naGrowthCurves(X);
+  return { review: naWeeklyReview(X, curves), goals: naGoalProgress(X, st.goals), alerts: naMineAlerts(X) };
 }
