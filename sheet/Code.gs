@@ -1,5 +1,3 @@
-// note分析キット  作者：TAKU（https://github.com/nooknest2025-tech/note-analytics-kit）
-// 個人で無料で使うのは自由です。販売・作者名の削除・無断の再配布は禁止（くわしくは LICENSE）。
 /* ===== Gemini 共通コード（資料の型ワークベンチ v1.0.0 から自動で取り込み。ここは直接編集しない） ===== */
 
 var SW_DEFAULT_MODEL = 'gemini-3.8-flash';          // 2026-10 時点: 無料枠あり（公式 pricing ページで確認）
@@ -228,7 +226,7 @@ function naCallOtherAi_(provider, prompt, st) {
 }
 
 /* ===== note分析シート：共通ロジック（Apps Script とテストで共用。GAS の API は使わない） ===== */
-var NA_VERSION = '1.6.1';
+var NA_VERSION = '1.6.3';
 var NA_API = 'https://note.com/api';
 var NA_PAGE_SIZE = 6;            // 一覧 API は 1 ページ 6 件（2026-10 時点で確認）
 var NA_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -802,6 +800,118 @@ function naFans(likes, articles, opt) {
   return { ranking: ranking, newRows: newRows, articleRows: articleRows, weekNew: weekNew, people: likeUsers.length, repeaters: likeUsers.filter(function (u) { return u.n >= 3; }).length,
     newPeople: users.filter(function (u) { return u.isNewUser; }).length, commenters: Object.keys(cPeople).length, comments: comments.length,
     commentOnly: users.filter(function (u) { return !u.n && u.c; }).length, unreplied: unreplied };
+}
+
+/* ---------- 期間を指定したファンの順位（v1.6.2） ----------
+ * from・to：'YYYY-MM-DD'（日本時間・両端の日を含む）。スキは「スキした日」（note の記録・日付だけ）、コメントは「コメントした日」（日付だけ）で数える。
+ * 自分のスキ・コメントは数えない。同じ記事への同じ人のスキは1回だけ。
+ * 返す rows は画面のファン一覧と同じ並び：[順位, ニックネーム, urlname, プロフィールURL, スキ(期間), スキ(期間), 期間の最初のスキ, 期間の最後のスキ, '', 印, コメント(期間), 期間の最後のコメント, スキ(期間), コメント(期間), コメント(期間)]
+ * 印：その人のいちばん最初のスキ・コメントが、この期間に入っていれば「はじめて」 */
+function naFansInRange(likes, comments, opt) {
+  opt = opt || {};
+  var re = /^\d{4}-\d{2}-\d{2}$/, f = naStr(opt.from), t = naStr(opt.to);
+  if (!re.test(f) || !re.test(t)) throw naError('INPUT', '開始日と終了日を選んでください。');
+  var from = naParseTime(f), to = naParseTime(t);
+  if (!isFinite(from) || !isFinite(to) || naJst(from).date !== f || naJst(to).date !== t) throw naError('INPUT', '日付を読み取れませんでした。カレンダーから選び直してください。');
+  if (from > to) { var x = from; from = to; to = x; x = f; f = t; t = x; }   // 逆に選んだときは入れかえる
+  var end = to + NA_DAY_MS, me = naStr(opt.own).toLowerCase(), byUser = {}, firstAct = {}, seen = {}, nLikes = 0, nComments = 0, likesFrom = null, commentsFrom = null, recFrom = null;
+  var inRange = function (ms) { return ms >= from && ms < end; };
+  var mk = function (name, nick) { return { urlname: name, nickname: nick, n: 0, c: 0, first: null, last: null, cLast: null }; };
+  var mine = function (u) { return u && naStr(u).toLowerCase() !== me; };
+  (likes || []).forEach(function (l) {
+    if (!mine(l.urlname) || !isFinite(l.likedMs) || !l.likedMs) return;
+    var id = l.key + '|' + l.urlname; if (seen[id]) return; seen[id] = true;
+    if (likesFrom === null || l.likedMs < likesFrom) likesFrom = l.likedMs;
+    if (l.recordedMs > 0 && (recFrom === null || l.recordedMs < recFrom)) recFrom = l.recordedMs;   // このツールが記録を始めた日（それより前のスキは、さかのぼって取れた分だけ）
+    if (firstAct[l.urlname] === undefined || l.likedMs < firstAct[l.urlname]) firstAct[l.urlname] = l.likedMs;
+    if (!inRange(l.likedMs)) return;
+    var u = byUser[l.urlname] = byUser[l.urlname] || mk(l.urlname, l.nickname);
+    u.n++; nLikes++; if (l.nickname) u.nickname = l.nickname;
+    u.first = u.first === null ? l.likedMs : Math.min(u.first, l.likedMs); u.last = u.last === null ? l.likedMs : Math.max(u.last, l.likedMs);
+  });
+  (comments || []).forEach(function (c) {
+    if (!mine(c.urlname) || c.byOwner || !isFinite(c.commentedMs) || !c.commentedMs) return;
+    if (commentsFrom === null || c.commentedMs < commentsFrom) commentsFrom = c.commentedMs;
+    if (c.recordedMs > 0 && (recFrom === null || c.recordedMs < recFrom)) recFrom = c.recordedMs;
+    if (firstAct[c.urlname] === undefined || c.commentedMs < firstAct[c.urlname]) firstAct[c.urlname] = c.commentedMs;
+    if (!inRange(c.commentedMs)) return;
+    var u = byUser[c.urlname] = byUser[c.urlname] || mk(c.urlname, c.nickname);
+    u.c++; nComments++; if (!u.n && c.nickname) u.nickname = c.nickname;
+    u.cLast = u.cLast === null ? c.commentedMs : Math.max(u.cLast, c.commentedMs);
+  });
+  var users = Object.keys(byUser).map(function (k) { return byUser[k]; });
+  var lastAct = function (u) { return Math.max(u.last || 0, u.cLast || 0); };
+  var d = function (ms) { return ms === null ? '' : naJst(ms).date; };
+  var ranking = users.sort(function (a, b) { return (b.n + b.c) - (a.n + a.c) || b.n - a.n || lastAct(b) - lastAct(a) || (a.urlname < b.urlname ? -1 : 1); }).map(function (u, i) {
+    return [i + 1, u.nickname, u.urlname, naProfileUrl(u.urlname), u.n, u.n, d(u.first), d(u.last), '', inRange(firstAct[u.urlname]) ? 'はじめて' : '', u.c, d(u.cLast), u.n, u.c, u.c];
+  });
+  var max = opt.max || 300;
+  return { from: f, to: t, days: Math.round((end - from) / NA_DAY_MS), people: ranking.length, likes: nLikes, comments: nComments,
+    likePeople: users.filter(function (u) { return u.n > 0; }).length, commentPeople: users.filter(function (u) { return u.c > 0; }).length,
+    newPeople: ranking.filter(function (r) { return r[9]; }).length,
+    likesFrom: likesFrom === null ? '' : naJst(likesFrom).date, commentsFrom: commentsFrom === null ? '' : naJst(commentsFrom).date, recordedFrom: recFrom === null ? '' : naJst(recFrom).date,
+    rows: naFanPick(ranking, max, Math.round(max / 2)).map(function (r) { return r.slice(0, 15); }), total: ranking.length };
+}
+
+/* ---------- ある人のスキ・コメントの移り変わり（v1.6.2。ファンをタップしたときに、その人の分だけ読む） ----------
+ * 期間：m3＝3か月（週ごと13本）／m6＝6か月（週ごと26本）／y1＝1年（月ごと12本）／all＝全期間（最初の記録から。半年以内なら週ごと、それより長ければ月ごと）
+ * opt.from・opt.to（'YYYY-MM-DD'）があると ranges.custom も作る（1年以内＝週ごと、1年より長い＝月ごと。両端の日を含む）
+ * 週は「今日まで」の7日ずつ（日本時間）、月はカレンダーの月。スキは「スキした日」、コメントは「コメントした日」（どちらも日付だけ）。同じ記事への同じ人のスキは1回だけ。 */
+function naPersonHistory(likes, comments, urlname, opt) {
+  opt = opt || {};
+  var k = naStr(urlname).toLowerCase(), me = naStr(opt.own).toLowerCase(), now = opt.now || Date.now();
+  if (!k || k === me) return null;
+  var seen = {}, lt = [], ct = [], nick = '', recFrom = null;
+  (likes || []).forEach(function (l) {
+    if (l.recordedMs > 0 && (recFrom === null || l.recordedMs < recFrom)) recFrom = l.recordedMs;
+    if (naStr(l.urlname).toLowerCase() !== k || !l.likedMs || !isFinite(l.likedMs)) return;
+    var id = l.key + '|' + k; if (seen[id]) return; seen[id] = true; lt.push(l.likedMs); if (l.nickname) nick = l.nickname;
+  });
+  (comments || []).forEach(function (c) {
+    if (c.recordedMs > 0 && (recFrom === null || c.recordedMs < recFrom)) recFrom = c.recordedMs;
+    if (c.byOwner || naStr(c.urlname).toLowerCase() !== k || !c.commentedMs || !isFinite(c.commentedMs)) return;
+    ct.push(c.commentedMs); if (!nick && c.nickname) nick = c.nickname;
+  });
+  var all = lt.concat(ct), first = all.length ? Math.min.apply(null, all) : null, last = all.length ? Math.max.apply(null, all) : null;
+  var tomorrow = Math.floor((now + 9 * NA_HOUR_MS) / NA_DAY_MS) * NA_DAY_MS - 9 * NA_HOUR_MS + NA_DAY_MS;   // 日本時間の明日の0時
+  var weeks = function (n) { var b = []; for (var i = n - 1; i >= 0; i--) { var e = tomorrow - i * 7 * NA_DAY_MS; b.push({ s: e - 7 * NA_DAY_MS, e: e, label: naJst(e - 7 * NA_DAY_MS).date }); } return b; };
+  var monthStart = function (y, m) { return Date.UTC(y, m, 1) - 9 * NA_HOUR_MS; };   // m は 0〜11（はみ出しても Date.UTC がくり上げる）
+  var j = new Date(now + 9 * NA_HOUR_MS), cy = j.getUTCFullYear(), cm = j.getUTCMonth();
+  var months = function (n) { var b = []; for (var i = n - 1; i >= 0; i--) { var s = monthStart(cy, cm - i), e = monthStart(cy, cm - i + 1); b.push({ s: s, e: e, label: naJst(s).date.slice(0, 7) }); } return b; };
+  var fill = function (unit, b) {
+    var L = b.map(function () { return 0; }), C = b.map(function () { return 0; });
+    var put = function (arr, t) { for (var i = 0; i < b.length; i++) if (t >= b[i].s && t < b[i].e) { arr[i]++; return; } };
+    lt.forEach(function (t) { put(L, t); }); ct.forEach(function (t) { put(C, t); });
+    var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+    return { unit: unit, labels: b.map(function (x) { return x.label; }), likes: L, comments: C, from: b.length ? naJst(b[0].s).date : '', to: b.length ? naJst(b[b.length - 1].e - 1).date : '', days: b.length ? Math.round((b[b.length - 1].e - b[0].s) / NA_DAY_MS) : 0, likeSum: sum(L), commentSum: sum(C) };
+  };
+  /* 期間指定：開始日〜終了日（両端を含む）。1年以内は週ごと、1年より長いときは月ごと */
+  var customOf = function (fromStr, toStr) {
+    var re = /^\d{4}-\d{2}-\d{2}$/, f = naStr(fromStr), t = naStr(toStr);
+    if (!re.test(f) || !re.test(t)) throw naError('INPUT', '開始日と終了日を選んでください。');
+    var from = naParseTime(f), to = naParseTime(t);
+    if (!isFinite(from) || !isFinite(to) || naJst(from).date !== f || naJst(to).date !== t) throw naError('INPUT', '日付を読み取れませんでした。カレンダーから選び直してください。');
+    if (from > to) { var tmp = from; from = to; to = tmp; tmp = f; f = t; t = tmp; }
+    var end = to + NA_DAY_MS, days = Math.round((end - from) / NA_DAY_MS), b = [], r;
+    if (days > 365) {
+      var fj = new Date(from + 9 * NA_HOUR_MS), tj = new Date(to + 9 * NA_HOUR_MS), n = (tj.getUTCFullYear() - fj.getUTCFullYear()) * 12 + (tj.getUTCMonth() - fj.getUTCMonth()) + 1;
+      for (var i = 0; i < n; i++) { var s = monthStart(fj.getUTCFullYear(), fj.getUTCMonth() + i), e = monthStart(fj.getUTCFullYear(), fj.getUTCMonth() + i + 1); b.push({ s: s, e: e, label: naJst(s).date.slice(0, 7) }); }
+      r = fill('month', b);
+    } else {
+      for (var s2 = from; s2 < end; s2 += 7 * NA_DAY_MS) { var e2 = Math.min(s2 + 7 * NA_DAY_MS, end); b.push({ s: s2, e: e2, label: naJst(s2).date }); }
+      if (!b.length) b.push({ s: from, e: end, label: f });
+      r = fill('week', b);
+    }
+    r.from = f; r.to = t; r.days = days; return r;
+  };
+  var allR;
+  if (first === null || first >= tomorrow - 26 * 7 * NA_DAY_MS) allR = fill('week', weeks(first === null ? 13 : Math.max(4, Math.ceil((tomorrow - first) / (7 * NA_DAY_MS)))));
+  else { var fj = new Date(first + 9 * NA_HOUR_MS); allR = fill('month', months((cy - fj.getUTCFullYear()) * 12 + (cm - fj.getUTCMonth()) + 1)); }
+  var ranges = { m3: fill('week', weeks(13)), m6: fill('week', weeks(26)), y1: fill('month', months(12)), all: allR };
+  if (opt.from || opt.to) ranges.custom = customOf(opt.from, opt.to);
+  return { urlname: naStr(urlname), nickname: nick || naStr(urlname), profileUrl: naProfileUrl(naStr(urlname)), likes: lt.length, comments: ct.length,
+    first: first === null ? '' : naJst(first).date, last: last === null ? '' : naJst(last).date, recordedFrom: recFrom === null ? '' : naJst(recFrom).date, today: naJst(now).date,
+    ranges: ranges };
 }
 
 /* ---------- AI 週報（Gemini）用のプロンプト ---------- */
@@ -1425,7 +1535,6 @@ function niNextSteps_(res, input, arts, now) {
  *   オフのとき（初期状態）は Cookie・ログイン情報は使わず、PV は手入力か貼り付けで記録します。
  * - スキ・コメント・フォロー・投稿などの自動操作は一切しません（読むだけ）。
  * - 取得したデータは自分の分析用です。公開・転載しないでください。
- * 作成: タク（業務改善で時短｜AI活用）
  */
 var NA_SHEETS = { settings: '設定', articles: '記事', snaps: '記事推移', history: 'クリエイター推移', pv: 'PV入力', paste: 'PV貼り付け',
   analysis: '分析', compare: '比較', ai: 'AIレポート', log: '取得ログ',
@@ -2312,6 +2421,29 @@ function naGetDashboard() {
     out.pvArticles = all.filter(function (x) { return x.creator === (st.own || st.target); }).sort(function (a, b) { return b.publishMs - a.publishMs; }).slice(0, 60).map(function (x) { return [x.key, x.date + '｜' + x.title.slice(0, 40)]; });
     return out;
   } catch (e) { return { ok: false, message: e.message }; }
+}
+/* v1.6.2：ファンタブの「期間指定」。from・to（'YYYY-MM-DD'）の間のスキ（スキした日）・コメント（コメントした日）で順位を作る。データはこのシートの中だけ */
+function naWebFanRange(from, to) {
+  if (!naWebAllowed_()) return { ok: false, message: NA_WEB_DENY };
+  try {
+    var st = naGetSettings_();
+    if (!st.own || !(st.likers || st.commenters)) return { ok: false, message: '「設定」で自分のIDを入れ、「誰からのスキを記録」を「はい」にすると使えます。' };
+    var r = naFansInRange(naLoadLikes_(), naLoadComments_(), { from: from, to: to, own: st.own, max: 300 });
+    r.ok = true; r.likersOn = !!st.likers; r.commentsOn = !!st.commenters; r.likerPages = st.likerPages; return r;
+  } catch (e) { return { ok: false, message: e.naCode === 'INPUT' ? e.message : '集計できませんでした：' + e.message }; }
+}
+/* v1.6.2：ファンをタップしたときに、その人のスキ・コメントの移り変わり（3か月・6か月・1年・全期間＋任意の開始日〜終了日）を返す。その人の分だけ・このシートの中だけ */
+function naWebFanHistory(urlname, from, to) {
+  if (!naWebAllowed_()) return { ok: false, message: NA_WEB_DENY };
+  try {
+    var u = naStr(urlname); if (!/^[A-Za-z0-9_\-]{1,50}$/.test(u)) return { ok: false, message: 'この人の記録は見つかりませんでした。' };
+    var st = naGetSettings_();
+    if (!st.own || !(st.likers || st.commenters)) return { ok: false, message: '「設定」で自分のIDを入れ、「誰からのスキを記録」を「はい」にすると使えます。' };
+    var opt = { now: Date.now(), own: st.own }; if (from || to) { opt.from = from; opt.to = to; }
+    var h = naPersonHistory(naLoadLikes_(), naLoadComments_(), u, opt);
+    if (!h) return { ok: false, message: 'この人の記録は見つかりませんでした。' };
+    h.ok = true; h.commentsOn = !!st.commenters; return h;
+  } catch (e) { return { ok: false, message: e.naCode === 'INPUT' ? e.message : '読み込めませんでした：' + e.message }; }
 }
 function naWebPreviewPv(text) {
   if (!naWebAllowed_()) return { ok: false, message: NA_WEB_DENY };

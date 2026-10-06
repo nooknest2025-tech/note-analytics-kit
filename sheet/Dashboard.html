@@ -79,6 +79,7 @@
   a.item:active { background: #F6F9F8; }
   .item .body { flex: 1; min-width: 0; }
   .item .tt { font-weight: 700; font-size: 14.5px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+  .item .tt a.fn { color: inherit; text-decoration: none; font-weight: inherit; } .item .tt a.fn:hover { color: var(--gd); text-decoration: underline; }
   .item .mt { font-size: 12px; color: var(--sub); display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; align-items: center; }
   .item .chev { color: #B8C1BE; flex: 0 0 auto; }
   .rank { width: 30px; height: 30px; border-radius: 10px; background: #EEF1F0; color: var(--sub); font-weight: 800; display: grid; place-items: center; flex: 0 0 auto; font-size: 14px; }
@@ -136,6 +137,20 @@
   @media (max-width: 420px) { .stages { grid-template-columns: repeat(2, 1fr); } .eff { grid-template-columns: 1fr; } }
   .chips button { flex: 0 0 auto; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--sub); cursor: pointer; }
   .chips button.on { background: var(--text); border-color: var(--text); color: #fff; }
+  /* v1.6.2：ファンの「期間指定」 */
+  .frange { background: #F6F8F7; border-radius: 14px; padding: 10px 12px 12px; margin-bottom: 10px; }
+  .frange .frow { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; }
+  .frange label { margin: 0 0 4px; font-size: 12px; color: var(--sub); }
+  .frange input[type=date] { display: block; height: 44px; min-width: 0; padding: 0 10px; line-height: 44px; -webkit-appearance: none; appearance: none; font-variant-numeric: tabular-nums; }
+  .frange input[type=date]:focus { outline: 2px solid var(--g); border-color: transparent; }
+  .frange .tilde { padding-bottom: 11px; color: var(--sub); font-weight: 800; }
+  .frange .chips { margin-top: 8px; } .frange .chips button { height: 30px; padding: 0 11px; font-size: 12px; }
+  .frange .fsum { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; } .frange .fsum .chip { font-size: 12px; padding: 2px 9px; background: #fff; border: 1px solid var(--line); }
+  .frange .hint { margin-top: 8px; line-height: 1.55; }
+  .phseg { margin: 4px 0 8px; } .phseg button { height: 32px; font-size: 12.5px; flex: 0 0 auto; }
+  .phsum { font-size: 12.5px; font-weight: 700; margin: 2px 2px 4px; } .phsum .l { color: #D23D5E; } .phsum .c { color: var(--gd); }
+  .phhint { margin-top: 6px; line-height: 1.55; white-space: pre-line; }
+  .sheetin .frange { margin: 0 0 10px; } .sheetin .frange .chips { flex-wrap: wrap; }
   .arow { padding: 13px 2px; border-top: 1px solid var(--line); }
   .list > .arow:first-child { border-top: 0; padding-top: 2px; }
   .arow a { color: inherit; text-decoration: none; }
@@ -364,6 +379,12 @@
       <div class="search" style="margin-bottom:6px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="fanQ" type="search" placeholder="名前・IDで探す" aria-label="ファンを名前で探す"></div>
       <div class="chips" id="fanSort" role="group" aria-label="ファンの並べかえ" style="margin-bottom:6px"></div>
       <div class="chips" id="fanPeriod" role="group" aria-label="ファンの期間" style="margin-bottom:8px"></div>
+      <div class="frange hidden" id="fanRange" role="group" aria-label="期間を指定">
+        <div class="frow"><div><label for="fanFrom">開始日</label><input id="fanFrom" type="date"></div><span class="tilde" aria-hidden="true">〜</span><div><label for="fanTo">終了日</label><input id="fanTo" type="date"></div></div>
+        <div class="chips" id="fanPresets" role="group" aria-label="よく使う期間"></div>
+        <div class="fsum" id="fanRangeSum"></div>
+        <div class="hint" id="fanRangeHint"></div>
+      </div>
       <div class="count" id="fanCount"></div><div class="list" id="fanRank"></div><button class="morebtn hidden" id="fanMore">もっと見る</button></div>
     <div class="grid2">
       <div class="card"><h2>新しいスキ<small id="fanSince"></small></h2><div class="list" id="fanNew"></div></div>
@@ -459,7 +480,7 @@
   /* note分析 スマホ画面（v1.4.0）。データは google.script.run で自分のスプレッドシートから読むだけ（外部には送りません）。
      画面に出す文字はすべて textContent / setAttribute で入れます（innerHTML にデータを入れない）。リンクは https://note.com/ だけ。 */
   var D = null, SVGNS = 'http://www.w3.org/2000/svg';
-  var ART = { sort: 'date', asc: false, q: '', limit: 60 }, FAN = { q: '', limit: 50, sort: 'total', period: 'all' };
+  var ART = { sort: 'date', asc: false, q: '', limit: 60 }, FAN = { q: '', limit: 50, sort: 'total', period: 'all', range: { from: '', to: '', key: '', data: null, loading: false, err: '', cache: {} } };
   function $(id) { return document.getElementById(id); }
   function safeUrl(u) { u = String(u || ''); return /^https:\/\/note\.com\/[A-Za-z0-9_\-\/.%?=&#]*$/.test(u) ? u : ''; }
   function add(p, k) {
@@ -511,7 +532,7 @@
   var toastTimer = null;
   function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 5000); }
   function call(name, args, ok, statusId) {
-    var r = google.script.run.withSuccessHandler(function (x) { ok(x); }).withFailureHandler(function (e) { var m = (e && e.message) || String(e); if (statusId) status(statusId, m, 'err'); else toast(m); });
+    var r = google.script.run.withSuccessHandler(function (x) { ok(x); }).withFailureHandler(function (e) { var m = (e && e.message) || String(e); if (typeof statusId === 'function') statusId(m); else if (statusId) status(statusId, m, 'err'); else toast(m); });
     r[name].apply(r, args || []);
   }
 
@@ -616,10 +637,10 @@
     var y = function (v) { return T + (H - T - B) * (1 - v / mx); };
     var s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': opt.label || '棒グラフ' });
     [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(mx * f), y2: y(mx * f), stroke: '#E7EBE9', 'stroke-dasharray': f ? '3 4' : null })); s.appendChild(sv('text', { x: L - 5, y: y(mx * f) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(mx * f) })); });
-    var gw = cw * 0.72, bw = Math.max(2, gw / series.length);
+    var gw = cw * 0.72, bw = Math.max(2, gw / series.length), step = n > 8 ? Math.max(3, Math.ceil(n * 44 / Math.max(1, W - L - R))) : 1;   // 棒が多いとき（半年・全期間）は、日付の文字が重ならないように間引く
     labels.forEach(function (lb, i) {
       series.forEach(function (sr, k) { var v = sr.vals[i]; if (!isNum(v) || v <= 0) return; var bx = L + cw * i + (cw - gw) / 2 + bw * k; s.appendChild(sv('rect', { x: bx + 0.5, y: y(v), width: Math.max(1.5, bw - 1), height: y(0) - y(v), rx: Math.min(3, bw / 2), fill: sr.color }, sv('title', { text: lb + ' ' + sr.name + ': ' + fmt(v) }))); });
-      if (i % (n > 8 ? 3 : 1) === 0 || i === n - 1) s.appendChild(sv('text', { x: L + cw * (i + 0.5), y: H - 6, 'font-size': 10.5, fill: '#8B9592', 'text-anchor': 'middle', text: lb }));
+      if ((i % step === 0 && n - 1 - i >= step / 2) || i === n - 1) s.appendChild(sv('text', { x: L + cw * (i + 0.5), y: H - 6, 'font-size': 10.5, fill: '#8B9592', 'text-anchor': 'middle', text: lb }));
     });
     add(host, [s, legend(series.map(function (sr) { return [sr.name, sr.color]; }))]);
   }
@@ -843,26 +864,36 @@
   /* ---------- ファンタブ ---------- */
   function renderFans() {
     var f = D && D.fans;
-    if (!f) { put('fanKpis', null); put('fanRank', empty('💚', 'ファンの記録はオフです', '「設定」で自分のIDを入れ、「誰からのスキを記録」を「はい」にして取得すると表示されます。')); put('fanNew', null); put('fanArt', null); $('fanCount').textContent = ''; return; }
+    if (!f) { $('fanRange').classList.add('hidden'); put('fanKpis', null); put('fanRank', empty('💚', 'ファンの記録はオフです', '「設定」で自分のIDを入れ、「誰からのスキを記録」を「はい」にして取得すると表示されます。')); put('fanNew', null); put('fanArt', null); $('fanCount').textContent = ''; return; }
     put('fanKpis', [kpi('スキしてくれた人', fmt(f.people), '人', ['3記事以上: ' + fmt(f.repeaters) + '人']), kpi('コメントしてくれた人', fmt(f.commenters || 0), '人', ['コメントだけ: ' + fmt(f.commentOnly || 0) + '人']),
       kpi('前回から新しく', fmt(f.newPeople), '人', [f.since + ' 以降']), kpi('今週はじめて', fmt(f.weekNewCount || 0), '人', ['スキ・コメントが最初']) ]);
     renderFanSort();
-    var q = FAN.q.trim().toLowerCase(), ranked = fanRanked(f.all || f.ranking || [], FAN.sort, FAN.period);
+    var R = FAN.range, isRange = FAN.period === 'range'; renderFanRange();
+    var q = FAN.q.trim().toLowerCase(), ranked = fanRanked(isRange ? ((R.data && R.data.rows) || []) : (f.all || f.ranking || []), FAN.sort, FAN.period);
     var list = ranked.filter(function (x) { var r = x.r; return !q || String(r[1]).toLowerCase().indexOf(q) >= 0 || String(r[2]).toLowerCase().indexOf(q) >= 0; });
     var all = f.all || f.ranking || [], mode = FAN_SORTS.filter(function (s) { return s[0] === FAN.sort; })[0], per = FAN_PERIODS.filter(function (s) { return s[0] === FAN.period; })[0];
-    $('fanCount').textContent = (q ? list.length + '人が見つかりました' : per[1] + '・' + mode[1] + '・上位 ' + Math.min(ranked.length, FAN.limit) + '人を表示') + '（記録した ' + fmt(f.total || all.length) + '人のうち' + (all.length < (f.total || 0) ? '上位 ' + all.length + '人から探せます' : '') + '）';
-    var noComment = FAN.sort === 'comments' && FAN.period === 'all' && !ranked.length, noPeriod = FAN.period !== 'all' && !ranked.length;
-    put('fanRank', list.length ? list.slice(0, FAN.limit).map(function (x) {
+    if (isRange) $('fanCount').textContent = !R.data || R.loading || R.err || !R.data.total ? '' : (q ? list.length + '人が見つかりました' : md(R.data.from) + '〜' + md(R.data.to) + '・' + mode[1] + '・上位 ' + Math.min(ranked.length, FAN.limit) + '人を表示') + '（この期間に来てくれた ' + fmt(R.data.total) + '人' + (R.data.rows.length < R.data.total ? '・上位 ' + R.data.rows.length + '人から探せます' : '') + '）';
+    else $('fanCount').textContent = (q ? list.length + '人が見つかりました' : per[1] + '・' + mode[1] + '・上位 ' + Math.min(ranked.length, FAN.limit) + '人を表示') + '（記録した ' + fmt(f.total || all.length) + '人のうち' + (all.length < (f.total || 0) ? '上位 ' + all.length + '人から探せます' : '') + '）';
+    var noComment = FAN.sort === 'comments' && FAN.period === 'all' && !ranked.length, noPeriod = FAN.period !== 'all' && !isRange && !ranked.length;
+    var rangeEmpty = !isRange ? null : R.loading || !R.data && !R.err ? empty('⏳', '集計しています…', '') : R.err ? empty('⚠️', 'うまく集計できませんでした', R.err)
+      : !ranked.length ? (R.data.total && FAN.sort === 'comments' ? empty('💬', 'この期間のコメントはありません', '「合計順」「スキ順」に切りかえると、スキしてくれた人が見られます。')
+        : empty('📅', 'この期間のスキ・コメントはありません', md(R.data.from) + '〜' + md(R.data.to) + ' には記録がありませんでした。期間を広げるか、ほかの日を選んでみてください。')) : null;
+    put('fanRank', rangeEmpty ? rangeEmpty : list.length ? list.slice(0, FAN.limit).map(function (x) {
       var r = x.r, fv = x.f, rank = x.rank, last = String(r[11] || '') > String(r[7] || '') ? String(r[11]) : String(r[7] || '');
       var big = FAN.sort === 'likes' ? [String(fv.likes), el('small', { text: '記事にスキ' })] : FAN.sort === 'comments' ? [String(fv.comments), el('small', { text: 'コメント' })] : [String(fv.total), el('small', { text: 'スキ+コメ' })];
-      return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('span', { class: 'rank' + (rank <= 3 ? ' r' + rank : ''), text: rank }), avatar(r[1], r[2], true),
-        el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' } }, [r[1] || r[2], ' ', r[9] ? chip(r[9], /新しい/.test(r[9]) ? 'new' : 'g') : null]),
-          el('div', { class: 'mt' }, [el('span', { text: '♥ ' + fv.likes + '記事' }), fv.comments ? el('span', { text: '💬 ' + fv.comments }) : null, el('span', { text: '最後 ' + md(last) })])]),
-        el('div', { class: 'big num' }, big)]);
+      var openIt = function () { openPerson(r[2], r[1]); };
+      // v1.6.3：名前は note のプロフィール（新しいタブ）。行のほかのところ／Enter でグラフ（くわしい動き）
+      var url = safeUrl(r[3]) || safeUrl('https://note.com/' + String(r[2] || ''));
+      var stop = function (e) { e.stopPropagation(); };
+      var nameEl = url ? el('a', { class: 'fn', href: url, 'aria-label': (r[1] || r[2]) + ' の note プロフィールを開く', onclick: stop, onkeydown: stop }, r[1] || r[2]) : (r[1] || r[2]);
+      return el('div', { class: 'item', role: 'button', tabindex: '0', 'data-fan': r[2], 'aria-label': (r[1] || r[2]) + ' のくわしい動きを見る', style: { cursor: 'pointer' }, onclick: openIt, onkeydown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openIt(); } } }, [el('span', { class: 'rank' + (rank <= 3 ? ' r' + rank : ''), text: rank }), avatar(r[1], r[2], true),
+        el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' } }, [nameEl, ' ', r[9] ? chip(r[9], /新しい|はじめて/.test(r[9]) ? 'new' : 'g') : null]),
+          el('div', { class: 'mt' }, [el('span', { text: '♥ ' + fv.likes + '記事' }), fv.comments ? el('span', { text: '💬 ' + fv.comments }) : null, el('span', { text: (isRange ? '期間内の最後 ' : '最後 ') + md(last) })])]),
+        el('div', { class: 'big num' }, big), chev()]);
     }) : noPeriod ? empty('📅', FAN.period === 'week' ? 'この1週間の記録はまだありません' : 'この30日の記録はまだありません', '「全期間」に切りかえると、これまでの全員が見られます。')
       : noComment ? empty('💬', 'コメントのデータはまだありません', f.commentsOn === false ? '「設定」の「コメントした人を記録（自分の記事だけ）」を「はい」にすると、次の自動取得から入ります。' : 'コメントのデータは次の自動取得から入ります。')
       : empty('🔍', '見つかりませんでした', '名前の一部や、note のID（@のあと）で探せます。'));
-    $('fanMore').classList.toggle('hidden', list.length <= FAN.limit);
+    $('fanMore').classList.toggle('hidden', !!rangeEmpty || list.length <= FAN.limit);
     $('fanSince').textContent = f.since + ' 以降';
     put('fanNew', (f.newRows || []).length ? f.newRows.slice(0, 15).map(function (r) {
       return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [avatar(r[1], r[2], true), el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' } }, [r[1], ' ', r[6] ? chip('はじめて', 'new') : null]), el('div', { class: 'mt' }, [el('span', { text: mdw(r[0]) }), el('span', { text: '「' + String(r[4]).slice(0, 26) + '」' })])])]);
@@ -873,8 +904,9 @@
   }
   // ファンの並べかえ：合計（スキした記事数＋コメント数）／スキした記事の数／コメントの数。順位はその並びで付け直す
   var FAN_SORTS = [['total', '合計順'], ['likes', 'スキ順'], ['comments', 'コメント順']];
-  var FAN_PERIODS = [['week', '週間'], ['month', '月間'], ['all', '全期間']];
+  var FAN_PERIODS = [['week', '週間'], ['month', '月間'], ['all', '全期間'], ['range', '期間指定']];
   // 期間ごとの数：r[4]=スキした記事数 r[10]=コメント数（全期間）／r[12] r[13]=直近7日／r[5] r[14]=直近30日
+  // 期間指定（v1.6.2）は、サーバーで集計した行（naWebFanRange）の r[4] r[10] をそのまま使う
   function fanVal(r, mode, period) {
     var lk = period === 'week' ? (r[12] || 0) : period === 'month' ? (r[5] || 0) : (r[4] || 0);
     var cm = period === 'week' ? (r[13] || 0) : period === 'month' ? (r[14] || 0) : (r[10] || 0);
@@ -894,9 +926,54 @@
     }));
     put('fanPeriod', FAN_PERIODS.map(function (s) {
       var on = FAN.period === s[0];
-      return el('button', { type: 'button', class: on ? 'on' : null, 'data-fperiod': s[0], 'aria-pressed': on ? 'true' : 'false', onclick: function () { FAN.period = s[0]; FAN.limit = 50; renderFans(); } }, s[1]);
+      return el('button', { type: 'button', class: on ? 'on' : null, 'data-fperiod': s[0], 'aria-pressed': on ? 'true' : 'false', onclick: function () { FAN.period = s[0]; FAN.limit = 50; if (s[0] === 'range') loadFanRange(); renderFans(); } }, s[1]);
     }));
   }
+  /* v1.6.2：期間指定。開始日・終了日（日本時間・両方の日を含む）を選ぶと、サーバーで「スキした日」「コメントした日」から数える */
+  function jstDay(offsetDays) { return new Date(Date.now() + 9 * 3600e3 + (offsetDays || 0) * 864e5).toISOString().slice(0, 10); }
+  var FAN_PRESETS = [['thisMonth', '今月'], ['lastMonth', '先月'], ['d90', '直近90日'], ['thisYear', '今年']];
+  function presetRange(k) {
+    var t = jstDay(0), y = +t.slice(0, 4), m = +t.slice(5, 7), p = function (n) { return (n < 10 ? '0' : '') + n; };
+    if (k === 'thisMonth') return [t.slice(0, 8) + '01', t];
+    if (k === 'lastMonth') { var ly = m === 1 ? y - 1 : y, lm = m === 1 ? 12 : m - 1, last = new Date(Date.UTC(ly, lm, 0)).getUTCDate(); return [ly + '-' + p(lm) + '-01', ly + '-' + p(lm) + '-' + p(last)]; }
+    if (k === 'd90') return [jstDay(-89), t];
+    if (k === 'thisYear') return [y + '-01-01', t];
+    return null;
+  }
+  function validDay(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s || ''); }
+  function loadFanRange() {
+    var R = FAN.range;
+    if (!validDay(R.from) || !validDay(R.to)) { var d = presetRange('thisMonth'); if (!validDay(R.from)) R.from = d[0]; if (!validDay(R.to)) R.to = d[1]; }
+    if (R.from > R.to) { var x = R.from; R.from = R.to; R.to = x; }   // 逆に選んだときは入れかえる
+    var key = R.from + '|' + R.to; R.key = key; R.err = '';
+    if (R.cache[key]) { R.data = R.cache[key]; R.loading = false; return; }
+    R.loading = true;
+    call('naWebFanRange', [R.from, R.to], function (r) {
+      if (R.key !== key) return;   // 途中で別の期間を選んだときは、古い結果を出さない
+      R.loading = false;
+      if (!r || !r.ok) { R.err = (r && r.message) || 'もう一度ためしてください。'; R.data = null; }
+      else { R.data = r; R.cache[key] = r; }
+      if (FAN.period === 'range') renderFans();
+    });
+  }
+  function renderFanRange() {
+    var R = FAN.range, on = FAN.period === 'range', box = $('fanRange'); box.classList.toggle('hidden', !on); if (!on) return;
+    var fi = $('fanFrom'), ti = $('fanTo'), today = jstDay(0);
+    if (fi.value !== R.from) fi.value = R.from; if (ti.value !== R.to) ti.value = R.to;
+    fi.max = today; ti.max = today; ti.min = R.from || '';
+    put('fanPresets', FAN_PRESETS.map(function (s) {
+      var d = presetRange(s[0]), act = d && d[0] === R.from && d[1] === R.to;
+      return el('button', { type: 'button', class: act ? 'on' : null, 'data-fpreset': s[0], 'aria-pressed': act ? 'true' : 'false', onclick: function () { R.from = d[0]; R.to = d[1]; FAN.limit = 50; loadFanRange(); renderFans(); } }, s[1]);
+    }));
+    var D2 = R.data, sum = [];
+    if (D2 && !R.loading && !R.err && D2.total) sum = [chip('📅 ' + D2.days + '日間'), chip('♥ スキ ' + fmt(D2.likes) + '件'), D2.commentsOn || D2.comments ? chip('💬 コメント ' + fmt(D2.comments) + '件') : null, chip('👤 ' + fmt(D2.total) + '人'), D2.newPeople ? chip('はじめて ' + fmt(D2.newPeople) + '人', 'new') : null];
+    put('fanRangeSum', sum);
+    var hint = 'スキは「スキした日」、コメントは「コメントした日」で数えます（日付だけ・自分の記事だけ）。スキを取り消した人も、記録したときのまま数えます。';
+    if (D2 && D2.recordedFrom && R.from < D2.recordedFrom) hint += '\n記録を始めたのは ' + mdw(D2.recordedFrom) + ' です。それより前のスキ・コメントは、さかのぼって取れた分だけ入っています（スキの多い記事では、古いスキが一部入っていないことがあります）。';
+    $('fanRangeHint').textContent = hint; $('fanRangeHint').style.whiteSpace = 'pre-line';
+  }
+  function onRangeInput() { var R = FAN.range, a = $('fanFrom').value, b = $('fanTo').value; if (!validDay(a) || !validDay(b)) return; R.from = a; R.to = b; FAN.limit = 50; loadFanRange(); renderFans(); }
+  $('fanFrom').addEventListener('change', onRangeInput); $('fanTo').addEventListener('change', onRangeInput);
   $('fanQ').addEventListener('input', function () { FAN.q = this.value; FAN.limit = 50; renderFans(); });
   $('fanMore').onclick = function () { FAN.limit += 50; renderFans(); };
 
@@ -927,18 +1004,95 @@
         el('div', { class: 'mt' }, sub), el('div', { class: 'pacts' }, [el('a', { class: 'mini', href: url, target: '_blank', rel: 'noopener', onclick: function (e) { e.stopPropagation(); } }, 'プロフィール ↗'), metBtn(u, nick)])]),
       P ? spark(P[1], color || '#F0627A') : null]);
   }
+  // v1.6.2：だれをタップしても、その人のスキ・コメントの移り変わりを見られる（3か月・6か月・1年・全期間・期間指定）。その人の分だけ、開いたときに読む
+  var PH = { range: 'm3', cache: {}, cur: '', from: '', to: '', customKey: '', customLoading: false }, PH_RANGES = [['m3', '3か月'], ['m6', '6か月'], ['y1', '1年'], ['all', '全期間'], ['custom', '期間指定']];
+  function monthLabel(lb, multi) { var m = /^(\d{4})-(\d{2})/.exec(lb || ''); return m ? (multi ? m[1].slice(2) + '/' + (+m[2]) : (+m[2]) + '月') : String(lb || ''); }
   function openPerson(u, nick) {
-    var P = (D.ins.people || {})[String(u).toLowerCase()], url = 'https://note.com/' + encodeURIComponent(u), host = el('div', { class: 'chart' });
-    var kids = [el('div', { class: 'item', style: { borderTop: 0 } }, [avatar(nick, u), el('div', { class: 'body' }, [el('div', { class: 'tt', text: (P && P[0]) || nick || u }), el('div', { class: 'mt' }, [el('span', { text: '@' + u }), P && P[3] ? chip(STAGE_NAME[P[3]] || '', P[3] === 'core' ? 'new' : 'g') : null, P && P[4] ? chip(MOVE_NAME[P[4]], P[4] === 'rising' || P[4] === 'back' ? 'up' : 'down') : null])])])];
-    if (P) {
-      kids.push(el('div', { class: 'pstats num' }, [el('div', {}, [el('b', { text: fmt(P[7]) }), el('span', { text: 'スキした記事（記録分）' })]), el('div', {}, [el('b', { text: fmt(P[8]) }), el('span', { text: 'コメント' })]), el('div', {}, [el('b', { text: P[6] ? P[5] + '/' + P[6] : '—' }), el('span', { text: '最近60日の記事' })])]));
-      kids.push(el('div', { class: 'hint', text: '12週間の動き（週ごと）・はじめて ' + md(P[9]) + (metEver(u) ? '・最後に会いに行った日 ' + md(metEver(u)) : '') }));
-      kids.push(host);
-    } else kids.push(el('div', { class: 'hint', text: 'この人のくわしい記録は、ランキングの上位・常連・動きのある人だけ表示します。' }));
+    var P = (D.ins && D.ins.people || {})[String(u).toLowerCase()], key = String(u).toLowerCase(), url = 'https://note.com/' + encodeURIComponent(u);
+    var host = el('div', { class: 'chart' }), stats = el('div', { class: 'pstats num' }), seg = el('div', { class: 'seg phseg', role: 'group', 'aria-label': 'グラフの期間' });
+    var rangeBox = el('div', { class: 'frange hidden', id: 'phRange', role: 'group', 'aria-label': '期間を指定' });
+    var sum = el('div', { class: 'phsum' }), hint = el('div', { class: 'hint phhint' });
+    PH.cur = key; if (PH.cache[key] && PH.cache[key].err) delete PH.cache[key];   // うまく読めなかった人は、開き直したときに読み直す
+    if (!validDay(PH.from) || !validDay(PH.to)) { var d0 = presetRange('thisMonth'); PH.from = d0[0]; PH.to = d0[1]; }
+    var kids = [el('div', { class: 'item', style: { borderTop: 0 } }, [avatar(nick, u), el('div', { class: 'body' }, [el('div', { class: 'tt', text: (P && P[0]) || nick || u }), el('div', { class: 'mt' }, [el('span', { text: '@' + u }), P && P[3] ? chip(STAGE_NAME[P[3]] || '', P[3] === 'core' ? 'new' : 'g') : null, P && P[4] ? chip(MOVE_NAME[P[4]], P[4] === 'rising' || P[4] === 'back' ? 'up' : 'down') : null])])]),
+      stats, seg, rangeBox, sum, host, hint];
     kids.push(el('div', { class: 'pacts', style: { marginTop: '12px' } }, [el('a', { class: 'mini', href: url, target: '_blank', rel: 'noopener' }, 'プロフィールを開く ↗'), metBtn(u, nick)]));
     kids.push(el('p', { class: 'hint', text: '「会いに行った」は、相手の記事を読みに行ったときの自分用のメモです。押しても相手には何も届きません。14日以内にスキやコメントがあれば「効果」に出ます。' }));
     openSheet('ファンのくわしい動き', kids);
-    if (P) barChart(host, D.ins.weeks.map(md), [{ name: 'スキした記事', color: '#F0627A', vals: P[1] }, { name: 'コメント', color: '#41C9B4', vals: P[2] }], { h: 160, label: '12週間のスキとコメント' });
+    function ensureCustom() {
+      if (!validDay(PH.from) || !validDay(PH.to)) return;
+      if (PH.from > PH.to) { var x = PH.from; PH.from = PH.to; PH.to = x; }
+      var ck = PH.from + '|' + PH.to; PH.customKey = ck;
+      var H = PH.cache[key]; if (!H || H.err) return;
+      if (H.ranges && H.ranges.custom && H.ranges.custom.from === PH.from && H.ranges.custom.to === PH.to) { PH.customLoading = false; return; }
+      if (H.customCache && H.customCache[ck]) { H.ranges = H.ranges || {}; H.ranges.custom = H.customCache[ck]; PH.customLoading = false; return; }
+      if (PH.customLoading && PH.customKey === ck) return;   // 同じ期間を二重に取りに行かない
+      PH.customLoading = true; H.customErr = '';
+      call('naWebFanHistory', [u, PH.from, PH.to], function (r) {
+        if (PH.cur !== key || PH.customKey !== ck) return;
+        PH.customLoading = false;
+        if (!r || !r.ok || !r.ranges || !r.ranges.custom) { if (H) H.customErr = (r && r.message) || 'もう一度ためしてください。'; }
+        else {
+          H.customErr = ''; H.customCache = H.customCache || {}; H.customCache[ck] = r.ranges.custom;
+          H.ranges = H.ranges || {}; H.ranges.custom = r.ranges.custom;
+          if (r.recordedFrom) H.recordedFrom = r.recordedFrom;
+        }
+        if (!$('sheet').classList.contains('hidden')) draw();
+      }, function (m) { if (PH.cur !== key) return; PH.customLoading = false; if (H) H.customErr = m; draw(); });
+    }
+    function drawRangeBox() {
+      var on = PH.range === 'custom'; rangeBox.classList.toggle('hidden', !on); if (!on) return;
+      var today = jstDay(0);
+      put(rangeBox, [
+        el('div', { class: 'frow' }, [
+          el('div', {}, [el('label', { for: 'phFrom', text: '開始日' }), el('input', { id: 'phFrom', type: 'date', value: PH.from, max: today, onchange: function () { var a = this.value, b = document.getElementById('phTo').value; if (!validDay(a) || !validDay(b)) return; PH.from = a; PH.to = b; ensureCustom(); draw(); } })]),
+          el('span', { class: 'tilde', 'aria-hidden': 'true', text: '〜' }),
+          el('div', {}, [el('label', { for: 'phTo', text: '終了日' }), el('input', { id: 'phTo', type: 'date', value: PH.to, max: today, min: PH.from || '', onchange: function () { var a = document.getElementById('phFrom').value, b = this.value; if (!validDay(a) || !validDay(b)) return; PH.from = a; PH.to = b; ensureCustom(); draw(); } })])
+        ]),
+        el('div', { class: 'chips', role: 'group', 'aria-label': 'よく使う期間' }, FAN_PRESETS.map(function (s) {
+          var d = presetRange(s[0]), act = d && d[0] === PH.from && d[1] === PH.to;
+          return el('button', { type: 'button', class: act ? 'on' : null, 'data-phpreset': s[0], 'aria-pressed': act ? 'true' : 'false', onclick: function () { PH.from = d[0]; PH.to = d[1]; ensureCustom(); draw(); } }, s[1]);
+        }))
+      ]);
+    }
+    function draw() {
+      if (PH.cur !== key) return;
+      var H = PH.cache[key], ok = H && !H.err, isCustom = PH.range === 'custom';
+      if (isCustom && ok) {
+        if (H.ranges && H.ranges.custom && (H.ranges.custom.from !== PH.from || H.ranges.custom.to !== PH.to)) delete H.ranges.custom;
+        ensureCustom();
+      }
+      var R = ok ? (isCustom ? (H.ranges && H.ranges.custom) : H.ranges[PH.range]) : null;
+      put(stats, [el('div', {}, [el('b', { text: ok ? fmt(H.likes) : P ? fmt(P[7]) : '…' }), el('span', { text: 'スキした記事（記録分）' })]), el('div', {}, [el('b', { text: ok ? fmt(H.comments) : P ? fmt(P[8]) : '…' }), el('span', { text: 'コメント' })]),
+        P && P[6] ? el('div', {}, [el('b', { text: P[5] + '/' + P[6] }), el('span', { text: '最近60日の記事' })]) : el('div', {}, [el('b', { text: ok && H.first ? md(H.first) : P && P[9] ? md(P[9]) : '—' }), el('span', { text: 'はじめて' })])]);
+      put(seg, PH_RANGES.map(function (x) { var on = PH.range === x[0]; return el('button', { type: 'button', class: on ? 'on' : null, 'data-phr': x[0], 'aria-pressed': on ? 'true' : 'false', onclick: function () { PH.range = x[0]; if (x[0] === 'custom') ensureCustom(); draw(); } }, x[1]); }));
+      drawRangeBox();
+      var met = metEver(u), extra = ((ok && H.first) || (P && P[9]) ? 'はじめて ' + md(ok && H.first ? H.first : P[9]) : '') + (met ? '・最後に会いに行った日 ' + md(met) : '');
+      if (!H) {
+        if (P && PH.range === 'm3') { put(sum, '直近12週（週ごと）・すべての期間を読み込んでいます…'); barChart(host, D.ins.weeks.map(md), [{ name: 'スキした記事', color: '#F0627A', vals: P[1] }, { name: 'コメント', color: '#41C9B4', vals: P[2] }], { h: 170, label: '12週間のスキとコメント' }); }
+        else { put(sum, null); put(host, empty('⏳', '読み込んでいます…', '')); }
+        hint.textContent = extra; return;
+      }
+      if (H.err) { put(sum, null); put(host, empty('⚠️', 'うまく読み込めませんでした', H.err)); hint.textContent = extra; return; }
+      if (isCustom && (PH.customLoading || !R)) {
+        if (H.customErr) { put(sum, null); put(host, empty('⚠️', 'うまく集計できませんでした', H.customErr)); }
+        else { put(sum, null); put(host, empty('⏳', 'この期間を集計しています…', '')); }
+        hint.textContent = extra; return;
+      }
+      var multi = R.labels.length && R.labels[0].slice(0, 4) !== R.labels[R.labels.length - 1].slice(0, 4);
+      var spanTo = R.to || (isCustom ? PH.to : '');
+      put(sum, [md(R.from) + (spanTo ? '〜' + md(spanTo) : '〜今日') + '・' + (R.unit === 'week' ? '週ごと' : '月ごと') + '　', el('span', { class: 'l', text: '♥ スキ ' + fmt(R.likeSum) }), '　', el('span', { class: 'c', text: '💬 コメント ' + fmt(R.commentSum) })]);
+      var title = isCustom ? '指定した期間のスキとコメント' : ((PH_RANGES.filter(function (x) { return x[0] === PH.range; })[0] || [])[1] + 'のスキとコメント');
+      barChart(host, R.labels.map(function (lb) { return R.unit === 'week' ? md(lb) : monthLabel(lb, multi); }), [{ name: 'スキした記事', color: '#F0627A', vals: R.likes }, { name: 'コメント', color: '#41C9B4', vals: R.comments }],
+        { h: 170, label: title, emptyTitle: 'この期間はスキ・コメントがありません', emptyText: (H.last ? '最後に来てくれたのは ' + mdw(H.last) + ' です。' : '') + (isCustom ? '期間を広げるか、ほかの日を選んでみてください。' : '「全期間」に切りかえると、これまでの動きが見られます。') });
+      var t = 'スキは「スキした日」、コメントは「コメントした日」で数えます（日付だけ・自分の記事だけ）。';
+      var fromForHint = R.from || (isCustom ? PH.from : '');
+      if (H.recordedFrom && fromForHint && fromForHint < H.recordedFrom) t += '記録を始めたのは ' + mdw(H.recordedFrom) + ' です。それより前は、さかのぼって取れた分だけです（スキの多い記事では、古いスキが一部入っていないことがあります）。';
+      hint.textContent = (extra ? extra + '\n' : '') + t;
+    }
+    draw();
+    if (!PH.cache[key]) call('naWebFanHistory', [u], function (r) { PH.cache[key] = r && r.ok ? r : { err: (r && r.message) || 'もう一度ためしてください。' }; if (PH.cache[key] && !PH.cache[key].err) { PH.cache[key].customCache = {}; } if (!$('sheet').classList.contains('hidden')) draw(); },
+      function (m) { PH.cache[key] = { err: m }; draw(); });
   }
   function renderInsights() {
     var I = D && D.ins; ['stageCard', 'moveCard', 'effCard', 'nextCard'].forEach(function (id) { $(id).classList.toggle('hidden', !I); });
@@ -1157,6 +1311,7 @@
   var rT = null; window.addEventListener('resize', function () { clearTimeout(rT); rT = setTimeout(drawCharts, 150); });
   function render(d) {
     D = d; $('skel').classList.add('hidden');
+    FAN.range.cache = {}; FAN.range.data = null; PH.cache = {}; if (FAN.period === 'range' && d.ok && d.fans) loadFanRange();   // 取得し直したら、期間指定も集計し直す
     if (!d.ok) { $('setup').classList.remove('hidden'); $('setup').textContent = d.message; $('sub').textContent = 'エラー'; return; }
     D.drafts = d.drafts || { reply: {}, thanks: {}, ideas: null };
     $('sub').textContent = 'v' + d.version + '｜' + (d.own ? '@' + d.own : '自分のID: 未設定') + (d.bench.length ? '｜比較: ' + d.bench.join(', ') : '') + '｜' + (d.source === 'RSS' ? 'RSS' : d.source === 'GitHub' ? 'GitHub/Colab' : '公開JSON');
