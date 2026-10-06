@@ -34,10 +34,15 @@ class Redactor:
         print(t, file=self.stream, flush=True)
 
 
-def chunk_payloads(out, run_id, source, started_ms, requests, message):
+def chunk_payloads(out, run_id, source, started_ms, requests, message, has_cookie=False):
     D = out["dash"]
+    # PV をスキップしても Cookie があれば authState=ok。受け取り側は skipped のとき前回 cookie を引き継ぐため、
+    # 以前 none のままだと「NOTE_SESSIONがありません」が残り続ける。
+    auth = {"ok": "ok", "invalid": "invalid", "none": "none"}.get(D["state"], "skipped")
+    if auth == "skipped" and has_cookie:
+        auth = "ok"
     log = {"result": "中断" if out["stopped"] else ("一部エラー" if out["errors"] else "成功"), "requests": requests, "message": message, "startedAt": started_ms,
-           "authState": {"ok": "ok", "invalid": "invalid", "none": "none"}.get(D["state"], "skipped"), "authReason": D["reason"] if D["state"] == "invalid" else "", "dashOk": D["state"] == "ok"}
+           "authState": auth, "authReason": D["reason"] if D["state"] == "invalid" else "", "dashOk": D["state"] == "ok"}
     base = lambda: {"kind": "note-analytics", "action": "data", "runId": run_id, "source": source}
     bodies = []
     for sec in ("articles", "snaps", "likers", "commenters", "pv"):
@@ -113,7 +118,7 @@ def run(env, argv=None, source="github", log_stream=None, opener=None, sender=No
     http = Client(cookie_value=cookie, interval_sec=P["interval"], sleep=sleep, opener=opener)
     out = fetch.run(http, P, started, log, has_cookie=bool(cookie), dash_off=bool(a.no_dashboard))
     msg = fetch.summary_message(out, http.requests)
-    bodies = chunk_payloads(out, uuid.uuid4().hex[:12], source, started, http.requests, msg)
+    bodies = chunk_payloads(out, uuid.uuid4().hex[:12], source, started, http.requests, msg, has_cookie=bool(cookie))
     # 念のため：送るデータに Cookie・トークンが絶対に入っていないこと
     blob = json.dumps(bodies, ensure_ascii=False)
     for x in [cookie_raw, cookie, http.token, secret]:
