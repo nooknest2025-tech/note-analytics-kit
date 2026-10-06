@@ -24,7 +24,7 @@ concurrency:
 jobs:
   fetch:
     # 配布元（テンプレート）では動かさない。自分用にコピーしたリポジトリでだけ動きます
-    if: github.repository != 'fein0618-design/note-analytics-kit'
+    if: github.repository != 'nooknest2025-tech/note-analytics-kit'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
