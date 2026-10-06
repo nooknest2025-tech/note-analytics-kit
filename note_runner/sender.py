@@ -44,7 +44,7 @@ def envelope(secret, body_obj, now_ms=None):
 
 RETRY_HTTP = (404, 408, 429, 500, 502, 503, 504)
 STATE_WAITS = (10, 30, 60)   # 設定の読み込み：失敗したら 10秒・30秒・60秒あけて最大3回やり直す（読むだけなので毎回新しい封筒）
-DATA_WAITS = (10, 30)        # 書き込み：最大2回やり直す。同じ封筒（同じ nonce）をそのまま送り直す
+DATA_WAITS = (15, 60, 120)   # 書き込み：最大3回やり直す（v1.4.2：Google 側の一時的な 404 が1分ほど続いたため長めに）。同じ封筒（同じ nonce）をそのまま送り直す。合計3分15秒で、時刻の許容（±10分）・nonce の記録（30分）の中
 REPLAY_CODE = "REPLAY"       # 受け取り側（v1.4.1 まで）は使用済み nonce を REPLAY で断る＝前の送信はもう届いている
 
 
@@ -147,7 +147,7 @@ class Sender:
 
     def send_data(self, payload):
         # 同じ封筒（同じ nonce・ts・署名）を送り直す：前の送信が届いていれば受け取り側が REPLAY で断るので、記事推移などが二重にならない。
-        # 時刻のずれの許容は ±10分、nonce の記録は30分なので、やり直しの待ち時間（合計40秒）はその中に収まる
+        # 時刻のずれの許容は ±10分、nonce の記録は30分なので、やり直しの待ち時間（合計3分15秒）はその中に収まる
         n = payload.get("chunk"), payload.get("chunks")
         label = "シートへの書き込み" + (f"（{n[0]}/{n[1]}回目）" if n[0] else "")
         return self._with_retry(label, DATA_WAITS, lambda: envelope(self.secret, payload), True)

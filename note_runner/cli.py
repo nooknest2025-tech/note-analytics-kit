@@ -14,6 +14,8 @@ from .sender import Sender, wire_len
 
 MAX_CHUNK = 1_000_000   # 1回に送る大きさ。実際に送る封筒の JSON（日本語は \\uXXXX にエスケープ後）の文字数で数える
 RECEIVER_MAX = 1_500_000   # 受け取り側（Apps Script）の上限：封筒の JSON 全体の文字数
+# 1回に送る件数の上限（受け取り側の NA_RX_LIMITS 以下。pv は書き込みが時間切れにならないよう少なめ）。v1.4.2：さかのぼりで pv が 2000 件を超えて止まったため
+ITEM_MAX = {"articles": 3000, "snaps": 4000, "likers": 8000, "commenters": 3000, "pv": 1000}
 
 
 class Redactor:
@@ -61,7 +63,7 @@ def chunk_payloads(out, run_id, source, started_ms, requests, message, has_cooki
         cur, size = [], 0
         for item in out[sec]:
             n = wire_len(item) + 1   # エスケープ後の長さ（日本語1文字＝6文字）。エスケープ前で数えると上限を超えることがある
-            if cur and size + n > MAX_CHUNK:
+            if cur and (size + n > MAX_CHUNK or len(cur) >= ITEM_MAX[sec]):
                 b = base(); b[sec] = cur; bodies.append(b); cur, size = [], 0
             cur.append(item); size += n
         if cur:
