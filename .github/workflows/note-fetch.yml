@@ -16,6 +16,18 @@ on:
         description: "Cookie を使う PV の自動取得をしない"
         type: boolean
         default: false
+      imp_backfill:
+        description: "インプレッション：この実行でさかのぼる日数（0〜120。空ならシートの設定）"
+        type: string
+        default: ""
+      likers_full:
+        description: "スキした人：スキが多い記事を最初のページから取り直す（以前の取りこぼし対策・1回だけでよい）"
+        type: boolean
+        default: false
+      commenters_full:
+        description: "コメントした人：コメントが30件を超える記事を最初のページから取り直す（以前の取りこぼし対策・1回だけでよい）"
+        type: boolean
+        default: false
 permissions:
   contents: read          # リポジトリへの書き込み権限は与えない
 concurrency:
@@ -26,7 +38,7 @@ jobs:
     # 配布元（テンプレート）では動かさない。自分用にコピーしたリポジトリでだけ動きます
     if: github.repository != 'nooknest2025-tech/note-analytics-kit'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,6 +67,9 @@ jobs:
           NA_SOURCE: github
           DRY_RUN: ${{ inputs.dry_run }}
           NO_DASH: ${{ inputs.no_dashboard }}
+          NA_IMP_BACKFILL: ${{ inputs.imp_backfill }}
+          NA_LIKERS_FULL: ${{ inputs.likers_full }}
+          NA_COMMENTERS_FULL: ${{ inputs.commenters_full }}
         run: |
           ARGS=""
           if [ "$DRY_RUN" = "true" ]; then ARGS="$ARGS --dry-run"; fi

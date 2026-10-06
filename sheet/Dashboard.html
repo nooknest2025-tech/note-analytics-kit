@@ -339,6 +339,7 @@
   .cmpt th:first-child, .cmpt td:first-child { text-align: left; width: 38%; color: var(--sub); font-weight: 700; font-size: 12px; } .cmpt tr.grp td { background: #F6F8F7; color: var(--text); font-weight: 800; text-align: left; font-size: 12px; }
   .cmpt td.hi { font-weight: 800; color: var(--gd); } .cmpt thead th { border-top: 0; font-size: 12px; color: var(--text); text-align: right; } .cmpt thead th a { color: inherit; }
   .stats.s6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mcover { background: #FFF8E6; border: 1px solid #F2D58A; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; font-size: 13px; line-height: 1.6; } .mcover b { font-weight: 800; } .mcover ul { margin: 4px 0 0; padding-left: 18px; }
   .arow .life { font-size: 11.5px; color: var(--sub); margin-top: 6px; line-height: 1.5; }
   .stats div.low b { color: var(--sub); font-weight: 600; }
   .printbtn { margin-left: 8px; }
@@ -386,7 +387,7 @@
       <div class="card" id="goalCard"><h2>今月の目標<button class="more" id="btnGoal" type="button">目標を入れる</button></h2><div id="goalBody"></div></div>
     </div>
     <div class="card hidden" id="nextCard"><h2>今週の次の一手<small>記録したデータから自動で（AIは使いません）</small></h2><div class="nexts" id="nextList"></div></div>
-    <div class="card"><h2>毎日のPVとスキ<small id="trendSub"></small></h2><div class="chart" id="trend"></div></div>
+    <div class="card"><h2>毎日のPVとスキ<small id="trendSub"></small></h2><div class="chart" id="trend"></div><p class="hint hidden" id="backLine"></p></div>
     <div class="grid2">
       <div class="card"><h2>いま伸びている記事<button class="more" data-go="art">すべて →</button></h2><div class="list" id="top5"></div></div>
       <div class="card aicard" id="aiCard"></div>
@@ -437,7 +438,7 @@
         <div class="chips" id="minePresets" role="group" aria-label="よく使う期間"></div>
         <div class="hint" id="mineRangeHint"></div>
       </div>
-      <div class="kpis k4 k6" id="mineKpis"></div>
+      <div class="mcover hidden" id="mineCover" role="note"></div><div class="kpis k4 k6" id="mineKpis"></div>
       <h2 style="font-size:15px;margin:4px 0 8px">毎日のPVとスキ<small id="mineTrendSub" style="font-size:12px;color:var(--sub);font-weight:500"></small></h2>
       <div class="chart" id="mineTrend"></div>
       <h2 style="font-size:15px;margin:16px 0 8px">毎日のインプレッションと読まれた率<small id="mineImpSub" style="font-size:12px;color:var(--sub);font-weight:500"></small></h2>
@@ -871,7 +872,7 @@
     put('kpis', [
       kpi(py.date ? mdw(py.date) + 'のPV' : '昨日のPV', fmt(py.value), '', isNum(py.value) ? [isNum(py.prev) ? delta(py.value - py.prev) : null, isNum(py.prev) ? (py.prevDate ? md(py.prevDate) + 'より' : '') : '前の日の記録はまだ'] : ['日次のPVがまだありません'], 'hero'),
       kpi(pvOld() ? 'ビュー（旧集計・全期間）' : '全期間のPV', fmt(pt.value), '', isNum(pt.value) ? [(pvOld() ? '取れた' : 'PVが取れた') + fmt(pt.articles) + '記事の合計' + (pt.date ? '・' + md(pt.date) + '時点' : '')] : ['PVを記録すると出ます']),
-      kpi('フォロワー', fmt(fw.value), '人', isNum(fw.value) ? [isNum(fw.prev) ? delta(fw.value - fw.prev) : null, isNum(fw.prev) ? (fw.prevDate ? md(fw.prevDate) + 'より' : '') : '前の記録はまだ'] : ['まだ記録がありません']),
+      kpi('フォロワー', fmt(fw.value), '人', isNum(fw.value) ? [isNum(fw.prev) ? delta(fw.value - fw.prev) : null, isNum(fw.prev) ? (fw.prevDate ? md(fw.prevDate) + 'より' : '') : '前の記録はまだ', folRecStart()] : ['まだ記録がありません']),
       kpi('新しいファン', f ? fmt(h.newFans) : '—', f ? '人' : '', f ? ['前回の取得から', h.weekFansCount ? chip('今週 ' + h.weekFansCount + '人', 'g') : null] : ['「誰からのスキ」を記録すると出ます']),
       kpi('未返信のコメント', f && h.hasComments ? fmt(h.unrepliedCount) : '—', f && h.hasComments ? '件' : '', f && h.hasComments ? [h.unrepliedCount ? '記録した時点' : chip('ぜんぶ返信済み', 'ok')] : ['「コメントした人」を記録すると出ます'], f && h.unrepliedCount ? 'alert' : ''),
       kpi('最後の取得', lg ? mdt(lg.start) : 'まだ', '', lg ? [chip(lg.result || '—', st), lg.message && st === 'ng' ? el('span', { text: String(lg.message).slice(0, 40) }) : null] : ['右上の ⟳ で取得できます'], 'small')]);
@@ -988,7 +989,7 @@
       el('div', { class: 'chart', id: 'cmpMiniChart', style: { marginTop: '12px' } })]);
   }
   function renderHome(d) {
-    renderKpis(d); $('trendSub').textContent = winText(30, (d.home || {}).trend || [], function (r) { return isNum(r[1]) || isNum(r[2]); }); renderAlerts(d); renderReview(d); renderGoals(d); renderTop5(d); renderAiCard(d); renderReplies(d); renderWeekFans(d); renderIdeas(d); renderCmpMini(d);
+    var bl = backLine(); $('backLine').textContent = bl; $('backLine').classList.toggle('hidden', !bl); renderKpis(d); $('trendSub').textContent = winText(30, (d.home || {}).trend || [], function (r) { return isNum(r[1]) || isNum(r[2]); }) + '・PV・スキとも note の日ごとの数字（今日の分は翌朝）'; renderAlerts(d); renderReview(d); renderGoals(d); renderTop5(d); renderAiCard(d); renderReplies(d); renderWeekFans(d); renderIdeas(d); renderCmpMini(d);
     var n = (d.home || {}).newFans; $('fanBadge').textContent = n > 99 ? '99+' : String(n || ''); $('fanBadge').classList.toggle('hidden', !n);
   }
 
@@ -1038,7 +1039,7 @@
           imp ? el('div', { class: (hl('ctr') || '') + (isNum(r[12]) && artCtr(r) === null ? ' low' : ''), title: isNum(r[12]) && artCtr(r) === null ? '表示が' + ART_MIN_IMP + '回未満なので出していません' : null }, [el('b', { text: isNum(artCtr(r)) ? artCtr(r) + '%' : '—' }), el('span', { text: '読まれた率' })]) : null]),
         imp ? el('div', { class: 'life' }, lifeLine(r)) : null]);
     }) : empty('🔍', q ? '見つかりませんでした' : '記事がまだありません', q ? '別のことばで探してみてください。' : '「今すぐ取得する」で記事一覧を取ってきます。'));
-    $('artMore').classList.toggle('hidden', list.length <= ART.limit);
+    $('artMore').classList.toggle('hidden', list.length <= ART.limit); $('artMore').textContent = 'もっと見る（全' + list.length + '件中' + Math.min(list.length, ART.limit) + '件を表示）';
     $('artMeta').textContent = rows.some(function (r) { return isNum(r[6]); }) ? (pvOld() ? 'ビュー＝note の旧い集計（全期間）' : 'PV・スキ率は「PV入力」の全期間の値から') : 'PVを記録すると、PV・スキ率も並びます';
   }
   $('artQ').addEventListener('input', function () { ART.q = this.value; ART.limit = 60; renderArticles(); });
@@ -1076,11 +1077,11 @@
     }) : noPeriod ? empty('📅', FAN.period === 'week' ? 'この1週間の記録はまだありません' : 'この30日の記録はまだありません', '「全期間」に切りかえると、これまでの全員が見られます。')
       : noComment ? empty('💬', 'コメントのデータはまだありません', f.commentsOn === false ? '「設定」の「コメントした人を記録（自分の記事だけ）」を「はい」にすると、次の自動取得から入ります。' : 'コメントのデータは次の自動取得から入ります。')
       : empty('🔍', '見つかりませんでした', '名前の一部や、note のID（@のあと）で探せます。'));
-    $('fanMore').classList.toggle('hidden', !!rangeEmpty || list.length <= FAN.limit);
+    $('fanMore').classList.toggle('hidden', !!rangeEmpty || list.length <= FAN.limit); $('fanMore').textContent = 'もっと見る（全' + list.length + '人中' + Math.min(list.length, FAN.limit) + '人を表示）';
     $('fanSince').textContent = f.since + ' 以降';
-    put('fanNew', (f.newRows || []).length ? f.newRows.slice(0, 15).map(function (r) {
+    put('fanNew', (f.newRows || []).length ? moreList(f.newRows, function (r) {
       return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [avatar(r[1], r[2], true), el('div', { class: 'body' }, [el('div', { class: 'tt', style: { WebkitLineClamp: '1' } }, [r[1], ' ', r[6] ? chip('はじめて', 'new') : null]), el('div', { class: 'mt' }, [el('span', { text: mdw(r[0]) }), el('span', { text: '「' + String(r[4]).slice(0, 26) + '」' })])])]);
-    }) : empty('💤', '新しいスキはまだありません', '次の取得で、前回より後のスキがここに出ます。'));
+    }, 15) : empty('💤', '新しいスキはまだありません', '次の取得で、前回より後のスキがここに出ます。'));
     put('fanArt', (f.articles || []).length ? f.articles.map(function (r, i) {
       return el(safeUrl(r[5]) ? 'a' : 'div', { class: 'item', href: r[5] }, [el('span', { class: 'rank' + (i < 3 ? ' r' + (i + 1) : ''), text: i + 1 }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[4] }), el('div', { class: 'mt', text: 'スキした人 ' + r[1] + '人のうち、はじめての人 ' + r[3] + '%' })]), el('div', { class: 'big num' }, [String(r[2]), el('small', { text: '新しい人' })])]);
     }) : empty('🌱', 'まだありません', ''));
@@ -1295,7 +1296,7 @@
         : [el('span', { text: '前 ' + r[2] + '% → 最近 ' + r[3] + '%' }), el('span', { text: '（' + r[4] + '本 → ' + r[5] + '本）' }), el('span', { text: '最後 ' + md(r[6]) })];
       return personRow(r[0], r[1], sub, col);
     }) : empty(MOVE.t === 'leaving' || MOVE.t === 'declining' ? '🌿' : '🔍', MOVE.t === 'leaving' ? '離れかけの人はいません' : 'いまは該当する人はいません', ''));
-    $('moveMore').classList.toggle('hidden', rows.length <= MOVE.limit);
+    $('moveMore').classList.toggle('hidden', rows.length <= MOVE.limit); $('moveMore').textContent = 'もっと見る（全' + rows.length + '人中' + Math.min(rows.length, MOVE.limit) + '人を表示）';
     // 効果
     var E = I.effect || {}, A = E.actions || {}, B = E.baseline || {}, R = E.reply || {};
     var pc = function (a, b) { return b ? Math.round(a / b * 100) : null; }, box = function (l, v, s, hi) { return el('div', { class: 'effb' + (hi ? ' hi' : '') }, [el('div', { class: 'l', text: l }), el('div', { class: 'v num' }, isNum(v) ? [String(v), el('small', { text: '%' })] : ['—']), el('div', { class: 's', text: s })]); };
@@ -1329,7 +1330,7 @@
     var c = D && D.cmp;
     if (!c) { put('cmpPeople', null); put('cmpBars', empty('📊', 'ベンチマークが未設定です', '「設定」シートで自分のIDとベンチマークのIDを入れると比較できます。')); ['cmpWeekly', 'cmpFollow', 'cmpMedian'].forEach(function (id) { put(id, null); }); put('cmp', null); return; }
     put('cmpPeople', c.people.map(function (p) { return el('div', { class: 'person' + (p.own ? '' : ' b') }, [el('div', { class: 'pid', text: (p.own ? '自分・' : '') + '@' + p.id }), el('div', { class: 'pv num' }, [fmt(p.followers), el('small', { style: { fontSize: '12px', color: '#6A7572', marginLeft: '3px' }, text: '人' })]),
-      el('div', { class: 'hint' }, isNum(p.growth) ? ['フォロワー ', delta(p.growth), '（' + md(p.growthFrom) + '→' + md(p.growthTo) + '）'] : ['フォロワー：' + (p.growthText || 'まだ記録がありません')])]); }));
+      el('div', { class: 'hint' }, isNum(p.growth) ? ['フォロワー ', delta(p.growth), '（' + md(p.growthFrom) + '→' + md(p.growthTo) + (p.growthDays < 29 ? '・記録開始' + md(p.growthFrom) + 'から。noteが過去分を出していないため' : '') + '）'] : ['フォロワー：' + (p.growthText || 'まだ記録がありません')])]); }));
     $('cmpDays').textContent = artRangeNote(c.people, c.days);
     put('cmpBars', hbars([['投稿ペース', '本/週', c.people.map(function (p) { return p.pace; }), paceNote(c.people)], ['直近30日に公開した記事のスキ（平均）', '', c.people.map(function (p) { return p.recent ? p.recent.avgLikes : null; }), '公開2日以上の記事'], ['スキ中央値', '', c.people.map(function (p) { return p.median; }), '分析した記事'], ['24時間のスキ（中央値）', '', c.people.map(function (p) { return p.d1; }), '推定を含む'],
       ['コメント中央値', '', c.people.map(function (p) { return p.comments; })], ['分析した記事数', '本', c.people.map(function (p) { return p.n; })]], c.people));
@@ -1399,6 +1400,7 @@
   /* ---------- この1週間のふり返り ---------- */
   function pctChip(c) {
     if (!c) return chip('前の7日は記録なし');
+    if (c.none) return chip((CMP_NONE[c.none] || CMP_NONE.prevNone)(c).replace('前の期間', '前の7日'));
     var v = isNum(c.pct) ? c.pct : null;
     return chip((c.perDay ? '1日あたり ' : '') + (v === null ? signed(c.diff) : (v > 0 ? '▲ +' : v < 0 ? '▼ −' : '± ') + Math.abs(v) + '%'), v > 0 ? 'up' : v < 0 ? 'down' : '');
   }
@@ -1410,7 +1412,7 @@
     var fd = c.followers, pfd = p.followers;
     put('reviewBody', [el('div', { class: 'rvk' }, [
       box('PV', isNum(c.pv.sum) ? fmt(c.pv.sum) : '—', isNum(c.pv.sum) ? [c.pv.days < 7 ? el('span', { text: c.pv.days + '日分の記録' }) : null, pctChip(r.pvCmp)] : [el('span', { text: 'PVの記録なし' })]),
-      box('スキされた数', isNum(c.likes.sum) ? fmt(c.likes.sum) : '—', isNum(c.likes.sum) ? [pctChip(r.likesCmp)] : [el('span', { text: '「スキした人」の記録で出ます' })]),
+      box('スキされた数', isNum(c.likes.sum) ? fmt(c.likes.sum) : '—', isNum(c.likes.sum) ? [c.likes.days < 7 ? el('span', { text: c.likes.days + '日分の記録' }) : null, pctChip(r.likesCmp)] : [el('span', { text: '「スキした人」の記録で出ます' })]),
       box('フォロワー', isNum(fd.diff) ? signed(fd.diff) : '—', [el('span', { text: isNum(fd.diff) ? md(fd.from) + '→' + md(fd.to) : fd.text }), isNum(fd.diff) && isNum(pfd.diff) ? el('span', { text: '前の7日 ' + signed(pfd.diff) }) : null]),
       box('新しいファン', fmt(r.newFans) + '人', [el('span', { text: r.fans.slice(0, 2).map(function (f) { return f[0]; }).join('・') + (r.newFans > 2 ? ' ほか' : '') })])]),
       el('div', { class: 'rvl' }, [el('span', { class: 'k', text: '投稿' }), r.posts + '本']),
@@ -1470,8 +1472,28 @@
   function onMineInput() { var a = $('mineFrom').value, b = $('mineTo').value; if (!validDay(a) || !validDay(b)) return; MINE.from = a; MINE.to = b; loadMine(); }
   $('mineFrom').addEventListener('change', onMineInput); $('mineTo').addEventListener('change', onMineInput);
   document.querySelectorAll('#curveSeg button').forEach(function (b) { b.onclick = function () { MINE.curve = b.getAttribute('data-c'); document.querySelectorAll('#curveSeg button').forEach(function (x) { x.classList.toggle('on', x === b); }); renderCurves(); drawMineCharts(); }; });
+  // v1.8.2：長い一覧は打ち切らずに「もっと見る（全◯件中◯件を表示）」で続きを出す
+  function moreList(items, render, step) {
+    var n = 0, chunk = function () { var part = items.slice(n, n + step).map(render); n += part.length; return part; };
+    var btn = function () {
+      if (n >= items.length) return null;
+      var b = el('button', { class: 'morebtn', type: 'button' }, 'もっと見る（全' + items.length + '件中' + n + '件を表示）');
+      b.onclick = function () { var host = b.parentNode, nx = chunk(); nx.forEach(function (x) { if (x) host.insertBefore(x, b); }); var nb = btn(); if (nb) host.replaceChild(nb, b); else host.removeChild(b); };
+      return b;
+    };
+    return chunk().concat([btn()]);
+  }
+  // v1.8.2：くらべない理由（どの数字も同じ書き方）
+  var CMP_NONE = { prevNone: function () { return '前の期間は記録なし'; }, prevFew: function (c) { return '前の期間は記録が' + c.prevDays + '日分だけ（くらべません）'; },
+    curFew: function () { return 'この期間の記録が少ないので、くらべません'; }, src: function () { return '前の期間は数え方がちがうので、くらべません'; } };
+  function noneChip(c) { return chip((CMP_NONE[c.none] || CMP_NONE.prevNone)(c)); }
+  // 「この期間279日のうち60日分（8/7〜10/5）」。全部そろっていれば「279日分すべて記録あり」
+  function covLine(n, of, a, b) { return n >= of ? of + '日分すべて記録あり' : 'この期間' + of + '日のうち' + n + '日分' + (n ? '（' + md(a) + (b && b !== a ? '〜' + md(b) : '') + '）' : ''); }
+  function folRecStart() { var fs = ((D && D.followerSeries) || []).filter(function (x) { return isNum(x[1]); }); return fs.length && fs.length < 90 ? el('span', { class: 'cov', text: '記録開始' + md(fs[0][0]) + 'から（noteが過去分を出していないため）' }) : null; }
+  function folStart(R) { var f = R.folFrom || ''; return f && f > R.from ? '記録開始' + md(f) + 'から（noteが過去分を出していないため）' : ''; }
   function cmpChip(c, prevLabel) {
     if (!c) return chip('前の期間は記録なし');
+    if (c.none) return noneChip(c);
     var v = isNum(c.pct) ? c.pct : null;
     return chip((c.perDay ? '1日あたり ' : '') + (v === null ? signed(c.diff) : (v > 0 ? '▲ +' : v < 0 ? '▼ −' : '± ') + Math.abs(v) + '%'), v > 0 ? 'up' : v < 0 ? 'down' : '');
   }
@@ -1485,15 +1507,22 @@
     var c = R.cur, p = R.prev, cp = R.cmp, prevTxt = '前の' + R.days + '日（' + md(R.prevFrom) + '〜' + md(R.prevTo) + '）とくらべて';
     $('mineMeta').textContent = '@' + MINE.data.id;
     $('mineRangeHint').textContent = md(R.from) + '〜' + md(R.to) + '（' + R.days + '日間）。' + prevTxt + '。記録した日数がちがうときは「1日あたり」でくらべます。';
-    var ci = c.imp || {}, cpi = cp.imp, cpc = cp.ctr, ptChip = function (x) { return x ? chip((x.diff > 0 ? '▲ +' : x.diff < 0 ? '▼ −' : '± ') + Math.abs(x.diff) + 'ポイント', x.diff > 0 ? 'up' : x.diff < 0 ? 'down' : '') : chip('前の期間は記録なし'); };
-    var impStart = R.cover && R.cover.impFrom ? '記録は' + ymdJ(R.cover.impFrom) + 'から' : '';
+    var ci = c.imp || {}, cpi = cp.imp, cpc = cp.ctr, ptChip = function (x) { return !x ? chip('前の期間は記録なし') : x.none ? noneChip(x) : chip((x.diff > 0 ? '▲ +' : x.diff < 0 ? '▼ −' : '± ') + Math.abs(x.diff) + 'ポイント', x.diff > 0 ? 'up' : x.diff < 0 ? 'down' : ''); };
+    var impStart = R.cover && R.cover.impFrom ? '記録は' + ymdJ(R.cover.impFrom) + 'から' : '', N = R.days, cv = function (t) { return el('span', { class: 'cov', text: t }); };
+    var lk = c.likes, fs0 = folStart(R), fcov = c.followers.cover || 0;
     put('mineKpis', [
-      kpi('PV', isNum(c.pv.sum) ? fmt(c.pv.sum) : '—', '', isNum(c.pv.sum) ? [cmpChip(cp.pv), el('span', { text: c.pv.days < R.days ? '記録 ' + c.pv.days + '日分' : '毎日の記録あり' })] : [el('span', { text: 'この期間のPVの記録なし' })], 'hero'),
-      kpi('インプレッション', isNum(ci.sum) ? fmt(ci.sum) : '—', '', isNum(ci.sum) ? [cmpChip(cpi), el('span', { text: ci.days < R.days ? '記録 ' + ci.days + '日分（' + md(ci.first) + '〜' + md(ci.last) + '）' : '毎日の記録あり' })] : [el('span', { text: impStart ? 'この期間の記録なし（' + impStart + '）' : '自動取得で記録すると出ます' })]),
-      kpi('読まれた率', isNum(ci.ctr) ? String(ci.ctr) : '—', isNum(ci.ctr) ? '%' : '', isNum(ci.ctr) ? [ptChip(cpc), el('span', { text: 'PV÷インプレッション（' + ci.days + '日）' })] : [el('span', { text: isNum(ci.sum) ? 'PVの合計がない日があるため出せません' : 'インプレッションの記録で出ます' })]),
-      kpi('スキされた数', isNum(c.likes.sum) ? fmt(c.likes.sum) : '—', '', isNum(c.likes.sum) ? [cmpChip(cp.likes), c.likes.days < R.days ? el('span', { text: c.likes.days + '日分' }) : null] : [el('span', { text: '「スキした人」の記録で出ます' })]),
-      kpi('スキ率', isNum(c.rate.pct) ? String(c.rate.pct) : '—', isNum(c.rate.pct) ? '%' : '', isNum(c.rate.pct) ? [ptChip(cp.rate), el('span', { text: 'スキ÷PV（PVを記録した' + c.rate.days + '日）' })] : [el('span', { text: 'PVとスキの両方の記録で出ます' })]),
-      kpi('フォロワー', isNum(c.followers.diff) ? signed(c.followers.diff) : '—', isNum(c.followers.diff) ? '人' : '', [el('span', { text: isNum(c.followers.diff) ? md(c.followers.from) + '→' + md(c.followers.to) + '（' + c.followers.days + '日）' : c.followers.text }), cp.followers ? chip('前の期間 ' + signed(p.followers.diff)) : null])]);
+      kpi('PV', isNum(c.pv.sum) ? fmt(c.pv.sum) : '—', '', isNum(c.pv.sum) ? [cmpChip(cp.pv), cv(covLine(c.pv.days, N, c.pv.first, c.pv.last))] : [el('span', { text: 'この期間のPVの記録なし' })], 'hero'),
+      kpi('インプレッション', isNum(ci.sum) ? fmt(ci.sum) : '—', '', isNum(ci.sum) ? [cmpChip(cpi), cv(covLine(ci.days, N, ci.first, ci.last))] : [el('span', { text: impStart ? 'この期間の記録なし（' + impStart + '）' : '自動取得で記録すると出ます' })]),
+      kpi('読まれた率', isNum(ci.ctr) ? String(ci.ctr) : '—', isNum(ci.ctr) ? '%' : '', isNum(ci.ctr) ? [ptChip(cpc), cv('PV÷インプレッション（同じ日）・' + covLine(ci.days, N, ci.first, ci.last))] : [el('span', { text: isNum(ci.sum) ? 'PVの合計がない日があるため出せません' : 'インプレッションの記録で出ます' })]),
+      kpi('スキされた数', isNum(lk.sum) ? fmt(lk.sum) : '—', '', isNum(lk.sum) ? [cmpChip(cp.likes), cv((lk.src === 'acct' ? 'note の日ごとの集計・' : 'スキした人の記録・') + covLine(lk.days, N, lk.first, lk.last)),
+        lk.ref && lk.ref.days > lk.days ? el('span', { class: 'cov', text: '参考：スキした人の記録では ' + fmt(lk.ref.sum) + '（' + covLine(lk.ref.days, N, lk.ref.first, lk.ref.last).replace('この期間' + N + '日のうち', '') + '）' }) : null] : [el('span', { text: '「スキした人」の記録か、自動取得で出ます' })]),
+      kpi('スキ率', isNum(c.rate.pct) ? String(c.rate.pct) : '—', isNum(c.rate.pct) ? '%' : '', isNum(c.rate.pct) ? [ptChip(cp.rate), cv('スキ÷PV（同じ日）・' + covLine(c.rate.days, N, c.rate.first, c.rate.last))] : [el('span', { text: 'PVとスキの両方の記録で出ます' })]),
+      kpi('フォロワー', isNum(c.followers.diff) ? signed(c.followers.diff) : '—', isNum(c.followers.diff) ? '人' : '', [!cp.followers ? chip('前の期間は記録なし') : cp.followers.none ? noneChip(cp.followers) : chip('前の期間より ' + signed(cp.followers.diff) + '人'), cv(isNum(c.followers.diff) ? md(c.followers.from) + '→' + md(c.followers.to) + '・' + covLine(fcov, N, c.followers.from, c.followers.to) : c.followers.text), fs0 ? cv(fs0) : null])]);
+    // 記録がそろっていない数字のまとめ（v1.8.2）：期間の一部の合計が、期間全体の数字に見えないように
+    var gaps = [['PV', c.pv.days, c.pv.first, c.pv.last], ['インプレッション', ci.days || 0, ci.first, ci.last], ['スキ', lk.days, lk.first, lk.last], ['フォロワー', fcov, c.followers.from, c.followers.to, fs0]].filter(function (g) { return g[1] < N; });
+    var cb = $('mineCover'); cb.classList.toggle('hidden', !gaps.length);
+    var bl2 = backLine();
+    put(cb, gaps.length ? [el('b', { text: 'この期間（' + N + '日）のうち、記録がある日だけの合計です' }), el('ul', {}, gaps.map(function (g) { return el('li', { text: g[0] + '：' + covLine(g[1], N, g[2], g[3]).replace('この期間' + N + '日のうち', '') + (g[4] ? '・' + g[4] : '') }); }).concat(bl2 ? [el('li', { text: bl2 })] : []))] : null);
     var isr = R.series.filter(function (r) { return isNum(r[5]); });
     $('mineImpSub').textContent = isr.length ? '記録 ' + isr.length + '日分' + (isr.length > 1 ? '（' + md(isr[0][0]) + '〜' + md(isr[isr.length - 1][0]) + '）' : '（' + md(isr[0][0]) + '）') : (impStart ? 'この期間の記録なし・' + impStart : 'まだ記録なし');
     $('mineTrendSub').textContent = winText(R.days, R.series, function (r) { return isNum(r[1]) || isNum(r[2]); }).replace('直近', '');
@@ -1529,7 +1558,7 @@
     var T = C.types, name = { dash: 'スタートダッシュ型', mid: '中間', slow: 'じわじわ型' };
     put('curveTypes', [C.typed ? el('div', { class: 'chips', style: { flexWrap: 'wrap' } }, ['dash', 'mid', 'slow'].map(function (t) { return chip(name[t] + ' ' + T[t] + '本', t === 'dash' ? 'g' : t === 'slow' ? 'wait' : ''); })) : null,
       el('div', { class: 'hint', style: { marginTop: '6px' }, text: '公開日＝0日目。「◯日目まで」はその日の終わりまでの合計です。数字は、その日までの記録がある記事の真ん中の値（本数つき）。スタートダッシュ型＝30日目までのスキの7割以上が3日目までに集まった記事／じわじわ型＝4割以下（30日目までのスキが5以上の' + C.typed + '本で判定）。スキは「スキした人」の記録（ほぼ全部記録できている記事）か、記事推移のその日の記録から。PVは公開日から毎日の日次PVがある記事だけ。' })]);
-    var rows = C.rows.filter(function (r) { return (k === 'pv' ? r[4] : r[5]).some(isNum); }).slice(0, 40);
+    var rows = C.rows.filter(function (r) { return (k === 'pv' ? r[4] : r[5]).some(isNum); });   // v1.8.2：全部（表は横・縦にスクロール）
     put('curveList', tbl(['公開日', 'タイトル'].concat(C.points.map(function (n) { return n + '日目'; })).concat(['型']), rows, function (r) { var v = k === 'pv' ? r[4] : r[5]; return [td(md(r[2])), tlink(r[1], r[3])].concat(v.map(function (x) { return td(x); })).concat([td(r[6] ? name[r[6]] : '')]); }));
     $('curveList').firstChild && $('curveList').firstChild.classList && $('curveList').firstChild.classList.add('tbl2');
   }
@@ -1584,6 +1613,12 @@
     add(host, [cap, s, legend([['読まれたのに反応が少ない', '#E8890C'], ['反応はいいのに読まれていない', '#12927F'], ['そのほか', '#B8C1BE']])]);
   }
   /* ---------- v1.8.0：表示×読まれた率の4区分・2記事くらべ ---------- */
+  // v1.8.2：日ごとの数字（PV・インプレッション・スキ）を、最初の記事の公開日までどこまでさかのぼったか
+  function backLine() {
+    var II = (D && D.impInfo) || {};
+    if (!II.contFrom || !II.first) return '';
+    return 'さかのぼり済み：' + ymdJ(II.contFrom) + '〜' + ymdJ(II.covTo) + '（最初の記事 ' + ymdJ(II.first) + '）' + (II.backDone ? '・最初の記事までそろいました' : '・のこり ' + fmt(II.backLeft) + '日（取得のたびに、設定の日数ずつさかのぼります）');
+  }
   function ymdJ(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? m[1] + '/' + (+m[2]) + '/' + (+m[3]) : String(d || ''); }
   var QUAD_ORDER = ['reach', 'hit', 'quiet', 'title'];   // 2×2：散布図と同じ向き（右＝表示が多い、上＝読まれた率が高い）
   var QUAD_COLOR = { hit: '#2FB9A2', title: '#E8890C', reach: '#4C8BF5', quiet: '#B8C1BE' };
@@ -1614,7 +1649,7 @@
     if (M.held.length) {
       var why = Object.keys(HELD_WHY).filter(function (k) { return M.heldWhy[k]; }).map(function (k) { return HELD_WHY[k] + ' ' + M.heldWhy[k] + '本'; }).join('・');
       put('impHeld', [M.reason && M.medImp === null ? el('div', { class: 'hint', text: M.reason, style: { marginBottom: '6px' } }) : null,
-        el('details', { class: 'held' }, [el('summary', {}, ['保留 ' + M.held.length + '本（' + why + '）', hq('held')]), el('ul', {}, M.held.slice(0, 30).map(function (r) { return el('li', {}, [link(String(r[1]).slice(0, 40), r[3]), '：' + fmt(r[4]) + ' 表示・' + HELD_WHY[r[13]]]); }))])]);
+        el('details', { class: 'held' }, [el('summary', {}, ['保留 ' + M.held.length + '本（' + why + '）', hq('held')]), el('ul', {}, moreList(M.held, function (r) { return el('li', {}, [link(String(r[1]).slice(0, 40), r[3]), '：' + fmt(r[4]) + ' 表示・' + HELD_WHY[r[13]]]); }, 30))])]);
     }
     $('impMapHint').textContent = (M.medImp !== null ? '真ん中の値（' + M.n + '本）：インプレッション ' + fmt(M.medImp) + '・読まれた率 ' + M.medCtr + '%。' : '') +
       '区分に入れる条件：この期間のインプレッション ' + M.minImp + ' 以上・公開3日以上・期間内に公開した記事は公開日からの記録がそろっていること・' + M.minN + '本以上。数字は期間の合計（記事ごとに記録した日だけ）。' + impCover() + '「例」は区分の中でいちばん数字が大きい記事です。';
@@ -1641,7 +1676,7 @@
     add(host, [cap, s, legend(QUAD_ORDER.map(function (q) { return [M.quads[q].label, QUAD_COLOR[q]]; }))]);
   }
   /* 2つの記事をくらべる：期間の数字（インプレッションの記録から）・全期間・伸び方・区分 */
-  function cmpOptions() { return ((D && D.articles) || []).slice(0, 500); }
+  function cmpOptions() { return (D && D.articles) || []; }
   function renderCmpArt() {
     var arts = cmpOptions(), ia = {}, R = MINE.data.range, M = MINE.data.impMap, qOf = {};
     (MINE.data.impArts || []).forEach(function (r) { ia[r[0]] = r; });
@@ -1706,11 +1741,11 @@
     var art = function (a) { return link('「' + String(a[1]).slice(0, 36) + '」', a[3]); };
     put('trigRank', F.rank.length ? F.rank.map(function (r, i) { return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('span', { class: 'rank r' + (i + 1), text: i + 1 }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: '公開 ' + md(r[2]) }), el('span', { text: '増えた日 ' + r[5] + '日' }), isNum(r[6]) ? el('span', { text: fmt(r[6]) + ' PV' }) : null, isNum(r[7]) ? el('span', { text: '♥ ' + fmt(r[7]) }) : null])]), el('div', { class: 'big num' }, ['+' + fmt(r[4]), el('small', { text: '人（目安）' })])]); })
       : empty('🌱', F.records < 2 ? 'フォロワーの記録をためています' : 'この期間に増えた日はありません', F.records < 2 ? '毎日の自動取得でフォロワー数が2日分以上たまると出ます。' : ''));
-    put('trigDays', F.days.slice(0, 12).map(function (d) {
+    put('trigDays', moreList(F.days, function (d) {
       return el('div', { class: 'trig' }, [el('div', { class: 'h' }, [d[3] > 1 ? md(d[1]) + '→' + md(d[0]) : mdw(d[0]), chip('+' + d[2] + '人', 'up'), d[3] > 1 ? chip(d[3] + '日分の増加', 'wait') : null, d[5] ? chip('はじめての人 ' + d[5] + '人', 'new') : null]),
         el('div', { class: 'a' }, d[4].length ? d[4].map(function (a) { return el('div', {}, [art(a), el('span', { class: 'hint', text: ' 公開 ' + md(a[2]) + (isNum(a[4]) ? '・' + fmt(a[4]) + ' PV' : '') + (isNum(a[5]) ? '・♥ ' + a[5] : '') })]); }) : [el('span', { class: 'hint', text: 'その前の3日に公開した記事はありません' })]),
         d[6].length ? el('div', { class: 'hint', text: 'はじめてスキ・コメントしてくれた人：' + d[6].map(function (f) { return f[0]; }).join('・') + (d[5] > d[6].length ? ' ほか' : '') }) : null]);
-    }));
+    }, 12));
   }
 
   /* ---------- CSV（UTF-8・BOMつき。Excel でも文字化けしない） ---------- */
@@ -1824,8 +1859,8 @@
     var its = itemsOn(PLAN.sel);
     put('dayList', its.length ? its.map(dayRow) : empty('🗓', 'この日の予定はありません', D.slots && D.slots.wd === dow(PLAN.sel) ? '⭐ スキが集まりやすい曜日です。' : ''));
     $('dayCard').classList.toggle('hidden', PLAN.mode === 'week');
-    var up = (D.plans || []).filter(function (p) { return p.date >= today && p.status !== '公開済み'; }).slice(0, 20);
-    put('upcoming', up.length ? up.map(function (p) { return dayRow({ kind: 'plan', p: p }); }) : empty('✍️', 'これからの予定はまだありません', '「＋ 予定を入れる」か、ホームの「次の記事案」から入れられます。'));
+    var up = (D.plans || []).filter(function (p) { return p.date >= today && p.status !== '公開済み'; });
+    put('upcoming', up.length ? moreList(up, function (p) { return dayRow({ kind: 'plan', p: p }); }, 20) : empty('✍️', 'これからの予定はまだありません', '「＋ 予定を入れる」か、ホームの「次の記事案」から入れられます。'));
     var n = (D.plans || []).length; $('planMeta').textContent = n ? '「投稿予定」シートに ' + n + '件' : '';
   }
   $('calPrev').onclick = function () { if (PLAN.mode === 'month') PLAN.cur = addMonths(PLAN.cur, -1); else PLAN.sel = addDays(PLAN.sel, -7); renderPlan(); };

@@ -44,7 +44,7 @@ def plan_settings(state, env_own="", env_bench=None):
         "impProven": bool((state or {}).get("impProven")),
         "sheetVersion": str((state or {}).get("version") or "")[:20],
         "known": {r[0]: {"likes": r[1], "likersAt": r[2] or 0, "hasText": bool(r[3]), "lastLike": r[4] or 0, "publishMs": r[5],
-                         "commentersAt": (r[6] if len(r) > 6 else 0) or 0} for r in ((state or {}).get("ownArticles") or []) if r and r[0]},
+                         "commentersAt": (r[6] if len(r) > 6 else 0) or 0, "likersN": (r[7] if len(r) > 7 else None)} for r in ((state or {}).get("ownArticles") or []) if r and r[0]},
     }
 
 
@@ -129,15 +129,29 @@ def run(http, P, now_ms, log, has_cookie=False, dash_off=False):
         task("本文の文字数", det)
 
     # 4) 誰からのスキ（自分の記事だけ・最後。日付だけ記録）
+    #    v1.4.4：1記事のページ数で打ち切らない（打ち切ると古いスキが二度と取られなかった）。最後のページまで取れた記事だけ「確認済み」にする。
+    #    シートに記録した人数が今のスキ数より明らかに少ない記事は、前回の続き（since）ではなく最初のページから取り直す（重複はシート側で除く）
     if P["likers"] and P["own"]:
         def lik():
-            mine = [a for a in arts.values() if a["creator"] == P["own"] and a["likes"] > (P["known"].get(a["key"], {}).get("likersAt") or 0)]
-            mine.sort(key=lambda a: -a["publishMs"])
-            seen = set()
-            for a in mine[:P["likerArticles"]]:
-                since = P["known"].get(a["key"], {}).get("lastLike") or 0   # 前回記録した、いちばん新しいスキの日（0時）
-                for page in range(1, P["likerPages"] + 1):
+            def short(a):
+                # 取り直す記事：手動の指定（likers_full）のときだけ、以前の打ち切り（1記事5ページ）にかかりえた記事（スキ 200 超）で、記録した人数が足りないもの。
+                # ふだんは取り直さない（note はログインしていない人のスキも数に入れるが、一覧には出ないので、人数はいつも少し足りない）
+                if not P.get("likersFull"):
+                    return False
+                n = P["known"].get(a["key"], {}).get("likersN")
+                return a["likes"] > LIKER_OLD_CAP and (n is None or n < a["likes"])
+            mine = [a for a in arts.values() if a["creator"] == P["own"] and (a["likes"] > (P["known"].get(a["key"], {}).get("likersAt") or 0) or short(a))]
+            mine.sort(key=lambda a: (not (a["likes"] > (P["known"].get(a["key"], {}).get("likersAt") or 0)), -a["publishMs"]))
+            seen, used, left = set(), 0, 0
+            for ai, a in enumerate(mine[:P["likerArticles"]]):
+                if used >= LIKER_REQ_BUDGET:
+                    left = len(mine[:P["likerArticles"]]) - ai
+                    break
+                since = 0 if short(a) else (P["known"].get(a["key"], {}).get("lastLike") or 0)   # 前回記録した、いちばん新しいスキの日（0時）
+                page, done = 1, False
+                while used < LIKER_REQ_BUDGET:
                     R = core.parse_likes(json.loads(http.get_public(core.likes_url(a["key"], page))), a["key"])
+                    used += 1
                     stop = R["isLast"]
                     for l in R["likes"]:
                         if l["likedMs"] < since:
@@ -148,23 +162,36 @@ def run(http, P, now_ms, log, has_cookie=False, dash_off=False):
                             continue
                         seen.add(k)
                         out["likers"].append({"key": a["key"], "urlname": l["urlname"], "nickname": l["nickname"], "day": core.jst(l["likedMs"])["date"]})
-                    if stop:
+                    if stop or not R["likes"]:
+                        done = True
                         break
-                out["likersAt"].append({"key": a["key"], "likes": a["likes"]})
-                out["likersChecked"] = True
+                    page += 1
+                if done:
+                    out["likersAt"].append({"key": a["key"], "likes": a["likes"]})
+                    out["likersChecked"] = True
+                else:
+                    out["dash"]["notes"].append(f"スキした人：{a['key']} は {page} ページまで記録（のこりは次回。1回のアクセス回数を抑えるため）")
+            if left:
+                out["dash"]["notes"].append(f"スキした人：のこり {left} 記事は次回に取ります（1回のアクセス回数を抑えるため）")
         task("スキした人", lik)
 
     # 5) コメントした人（自分の記事だけ・スキの後＝いちばん最後。本文は保存しない。日付だけ記録）
     #    前回確認したときよりコメント数が増えた記事だけ。初回はコメントのある記事を新しい順に。1回20記事・1記事3ページまで
     if P["commenters"] and P["own"]:
         def com():
-            mine = [a for a in arts.values() if a["creator"] == P["own"] and a["comments"] > (P["known"].get(a["key"], {}).get("commentersAt") or 0)]
+            if P.get("commentersFull"):
+                # v1.4.5：手動の指定のときだけ。以前の打ち切り（1記事3ページ＝30件）を超えるコメントがある記事を、最初のページから取り直す（同じコメントはシート側で1行にまとまる）
+                mine = [a for a in arts.values() if a["creator"] == P["own"] and a["comments"] > COMMENTER_OLD_CAP]
+                limit = len(mine)
+            else:
+                mine = [a for a in arts.values() if a["creator"] == P["own"] and a["comments"] > (P["known"].get(a["key"], {}).get("commentersAt") or 0)]
+                limit = P["commenterArticles"]
             mine.sort(key=lambda a: -a["publishMs"])
             seen = set()
-            for a in mine[:P["commenterArticles"]]:
-                page = 1
+            for a in mine[:limit]:
+                page, done = 1, False
                 try:
-                    for _ in range(P["commenterPages"]):
+                    for _ in range(COMMENTER_MAX_PAGES):   # v1.4.4：3ページで打ち切らない（最後のページまで。打ち切ったら「確認済み」にしない）
                         R = core.parse_comments(json.loads(http.get_public(core.comments_url(a["key"], page))), a["key"], P["own"])
                         for c in R["comments"]:
                             if c["cid"] in seen:
@@ -173,14 +200,19 @@ def run(http, P, now_ms, log, has_cookie=False, dash_off=False):
                             out["commenters"].append({"key": a["key"], "cid": c["cid"], "urlname": c["urlname"], "nickname": c["nickname"],
                                                       "day": core.jst(c["commentedMs"])["date"], "byOwner": c["byOwner"], "replied": c["replied"]})
                         if not R["next"] or R["next"] <= page:
+                            done = True
                             break
                         page = R["next"]
                 except core.NaError as e:
                     if e.code != "NOTFOUND":
                         raise
                     err(f"コメント {a['key']}: {e.message}")   # 削除された記事など。ほかの記事は続ける
-                out["commentersAt"].append({"key": a["key"], "comments": a["comments"]})
-                out["commentersChecked"] = True
+                    done = True if e.code == "NOTFOUND" else done
+                if done:
+                    out["commentersAt"].append({"key": a["key"], "comments": a["comments"]})
+                    out["commentersChecked"] = True
+                else:
+                    out["dash"]["notes"].append(f"コメントした人：{a['key']} は {COMMENTER_MAX_PAGES} ページで止めました（のこりは次回）")
         task("コメントした人", com)
     return out
 
@@ -224,6 +256,10 @@ def _dash(http, P, now_ms, out, arts, log):
     _gql(http, P, now_ms, out, arts)
 
 
+LIKER_OLD_CAP = 200       # v1.4.3 までの打ち切り（1記事5ページ）にかかりえたスキ数の目安
+LIKER_REQ_BUDGET = 120    # スキした人に使うアクセス回数の上限（1回の実行あたり。足りない分は次回に続きから）
+COMMENTER_OLD_CAP = 30    # v1.4.3 までの打ち切り（1記事3ページ＝コメント30件）
+COMMENTER_MAX_PAGES = 30  # コメントは1記事30ページまで（ふつうは1〜2ページ）
 IMP_REQ_BUDGET = 90        # さかのぼりに使うアクセス回数の上限（1回の実行あたり。あとの取得のぶんを残す）
 IMP_REQ_RESERVE = 120      # 実行全体の上限からこれだけは残す
 
@@ -278,7 +314,7 @@ def _gql(http, P, now_ms, out, arts):
         pending, skipped_busy = [], []
         for di, date in enumerate(dates):
             used = http.requests - start_req
-            if di > 0 and (used >= IMP_REQ_BUDGET or http.requests >= http.max_requests - IMP_REQ_RESERVE):
+            if di > 0 and (used >= P.get("impBudget", IMP_REQ_BUDGET) or http.requests >= http.max_requests - IMP_REQ_RESERVE):
                 D["notes"].append(f"インプレッション：のこり {len(dates) - di} 日分は次回に取ります（1回のアクセス回数を抑えるため）")
                 break
             rows, after, total, ok = [], None, None, True

@@ -346,7 +346,7 @@ def parse_gql(j):
             "suspectAnonymous": (not items or all_zero) and not num0(sm.get("pageViewCount")) and not num0(sm.get("impressionCount"))}
 
 
-IMP_MAX_BACK_DAYS = 800   # さかのぼる上限（約2年）
+IMP_MAX_BACK_DAYS = 7300  # さかのぼる上限（約20年。v1.4.5：800日→最初の記事の公開日まで届くように）
 
 
 def plan_imp_dates(have, yday, floor, limit):
