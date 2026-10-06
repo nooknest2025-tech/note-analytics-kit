@@ -293,7 +293,7 @@ def parse_stats_pv(j):
     return {"items": items, "skipped": skipped, "isLast": last is True or last == "true" or len(lst) == 0}
 
 
-GQL_QUERY_FULL = ("query NaDashboard($date: Datetime!, $after: String) { dashboardSummary(unit: DAY, date: $date) { lastUpdatedAt metrics { impressionCount pageViewCount } } "
+GQL_QUERY_FULL = ("query NaDashboard($date: Datetime!, $after: String) { dashboardSummary(unit: DAY, date: $date) { lastUpdatedAt metrics { impressionCount pageViewCount likeCount commentCount salesAmount } } "
                   "dashboardNoteListConnection(unit: DAY, date: $date, order: PUBLISHED_DATE_DESC, first: 50, after: $after) { pageInfo { hasNextPage endCursor } "
                   "edges { node { note { link { absoluteUrl } } metrics { impressionCount pageViewCount likeCount commentCount salesAmount } } } } }")
 GQL_QUERY_MIN = ("query NaDashboard($date: Datetime!, $after: String) { dashboardSummary(unit: DAY, date: $date) { lastUpdatedAt metrics { impressionCount pageViewCount } } "
@@ -335,8 +335,44 @@ def parse_gql(j):
             skipped += 1
             continue
         items.append({"key": key, "pv": o(m.get("pageViewCount")), "imp": o(m.get("impressionCount")), "likes": o(m.get("likeCount")), "comments": o(m.get("commentCount")), "sales": o(m.get("salesAmount"))})
-    sm = ((d.get("dashboardSummary") or {}).get("metrics") or {})
+    summ = d.get("dashboardSummary") if isinstance(d.get("dashboardSummary"), dict) else {}
+    sm = summ.get("metrics") if isinstance(summ.get("metrics"), dict) else {}
     pi = conn.get("pageInfo") or {}
     all_zero = bool(items) and all(not x["pv"] and not x["imp"] for x in items)
+    # 日ごとの合計（アカウント全体）。null・項目なしは「データなし」（0 とは区別して ""）
+    total = {"pv": o(sm.get("pageViewCount")), "imp": o(sm.get("impressionCount")), "likes": o(sm.get("likeCount")), "comments": o(sm.get("commentCount")), "sales": o(sm.get("salesAmount"))}
     return {"items": items, "skipped": skipped, "hasNext": bool(pi.get("hasNextPage")) and bool(pi.get("endCursor")), "endCursor": s(pi.get("endCursor")),
+            "summary": total, "hasSummary": bool(sm), "lastUpdatedAt": s(summ.get("lastUpdatedAt")),
             "suspectAnonymous": (not items or all_zero) and not num0(sm.get("pageViewCount")) and not num0(sm.get("impressionCount"))}
+
+
+IMP_MAX_BACK_DAYS = 800   # さかのぼる上限（約2年）
+
+
+def plan_imp_dates(have, yday, floor, limit):
+    """まだ記録していない日（新しい順）。have: 記録済みの日 set、floor: これより前は見ない（最初の記事の公開日）。limit: 1回で取る日数（昨日を含む）"""
+    out = []
+    if limit <= 0:
+        return out
+    d = datetime.strptime(yday, "%Y-%m-%d")
+    lo = d - timedelta(days=IMP_MAX_BACK_DAYS)
+    try:
+        f = datetime.strptime(floor, "%Y-%m-%d") if floor else lo
+    except ValueError:
+        f = lo
+    f = max(f, lo)
+    while d >= f and len(out) < limit:
+        k = d.strftime("%Y-%m-%d")
+        if k not in have:
+            out.append(k)
+        d -= timedelta(days=1)
+    return out
+
+
+def day_ready(last_updated, date_str):
+    """その日の集計が終わっているか。note の「最終更新」がその日の翌日 0:00（日本時間）以降なら True。読めないときは None"""
+    t = parse_time(last_updated)
+    if t is None:
+        return None
+    end = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=JST) + timedelta(days=1)
+    return t >= end.timestamp() * 1000

@@ -43,7 +43,7 @@
   /* 数字のカード */
   .kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
   .kpi { background: var(--card); border-radius: var(--r); padding: 14px 14px 12px; box-shadow: 0 1px 2px rgba(16,40,34,.05), 0 4px 16px rgba(16,40,34,.04); min-width: 0; position: relative; overflow: hidden; }
-  .kpi .l { font-size: 12px; font-weight: 700; color: var(--sub); display: flex; align-items: center; gap: 6px; }
+  .kpi .l { font-size: 12px; font-weight: 700; color: var(--sub); display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; }
   .kpi .l .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g); flex: 0 0 auto; }
   .kpi .v { font-size: 30px; font-weight: 800; line-height: 1.15; margin: 6px 0 4px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .kpi .v small { font-size: 14px; font-weight: 700; margin-left: 2px; color: var(--sub); }
@@ -315,6 +315,43 @@
   body:not(.tab-more) #cookie.okbox { display: none; }
   @media (min-width: 640px) { .cd .dots { display: none; } .cd .lbls { display: block; } .cd { aspect-ratio: auto; min-height: 84px; align-items: stretch; } .cd .dn { align-self: flex-start; } }
   @media (min-width: 960px) { .sheet { align-items: center; } .sheetin { border-radius: 22px; } .cd { min-height: 96px; } }
+  /* v1.8.0：？（指標の説明）・インプレッションの4区分・2記事くらべ・印刷 */
+  .hq { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 0; padding: 0; margin-left: 2px; background: #E4E9E7; color: var(--sub); font: 800 11px/1 inherit; cursor: pointer; flex: 0 0 auto; vertical-align: 1px; }
+  .hq:hover, .hq[aria-expanded=true] { background: var(--gd); color: #fff; } .hq:focus-visible { outline: 2px solid var(--g); outline-offset: 1px; }
+  .kpi.hero .hq { background: rgba(255,255,255,.28); color: #fff; }
+  .tip { position: absolute; z-index: 60; max-width: 300px; background: #1B2220; color: #fff; border-radius: 12px; padding: 10px 12px; font-size: 12.5px; line-height: 1.6; box-shadow: 0 6px 24px rgba(0,0,0,.18); }
+  .tip b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .k6 .kpi:last-child { grid-column: 1 / -1; }
+  @media (min-width: 640px) { .k6 .kpi:last-child { grid-column: auto; } }
+  .quads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+  .quad { border-radius: 14px; padding: 10px 11px; background: #F6F8F7; min-width: 0; border-top: 4px solid #B8C1BE; }
+  .quad.hit { border-top-color: #2FB9A2; } .quad.title { border-top-color: #E8890C; } .quad.reach { border-top-color: #4C8BF5; } .quad.quiet { border-top-color: #B8C1BE; }
+  .quad .ql { font-size: 12.5px; font-weight: 800; line-height: 1.4; } .quad .qn { font-size: 11.5px; color: var(--sub); margin-top: 2px; }
+  .quad .qr { font-size: 12.5px; margin-top: 6px; line-height: 1.45; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; } .quad .qr a { color: inherit; font-weight: 700; }
+  .quad .qm { font-size: 11px; color: var(--sub); margin-top: 2px; } .quad .qa { font-size: 12px; margin-top: 6px; color: var(--gd); font-weight: 700; line-height: 1.45; }
+  .held summary { cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--sub); padding: 4px 0; } .held ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--sub); } .held li { margin: 2px 0; word-break: break-all; }
+  .rv3 { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 12px; } @media (min-width: 640px) { .rv3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .rv3 h3 { font-size: 13.5px; margin: 4px 0 6px; } .rv3 h3 small { display: block; font-weight: 500; color: var(--sub); font-size: 11.5px; }
+  .subh { font-size: 14px; margin: 14px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .cmpsel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 10px; } @media (min-width: 640px) { .cmpsel { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .cmpsel label { font-size: 12px; color: var(--sub); margin: 0 0 4px; } .cmpsel select { width: 100%; min-width: 0; }
+  .cmpt { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; } .cmpt th, .cmpt td { white-space: normal; padding: 7px 6px; border-top: 1px solid var(--line); text-align: right; vertical-align: top; overflow-wrap: anywhere; }
+  .cmpt th:first-child, .cmpt td:first-child { text-align: left; width: 38%; color: var(--sub); font-weight: 700; font-size: 12px; } .cmpt tr.grp td { background: #F6F8F7; color: var(--text); font-weight: 800; text-align: left; font-size: 12px; }
+  .cmpt td.hi { font-weight: 800; color: var(--gd); } .cmpt thead th { border-top: 0; font-size: 12px; color: var(--text); text-align: right; } .cmpt thead th a { color: inherit; }
+  .stats.s6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stats div.low b { color: var(--sub); font-weight: 600; }
+  .printbtn { margin-left: 8px; }
+  @media print {
+    @page { margin: 12mm; }
+    body { background: #fff !important; padding: 0 !important; } .wrap { max-width: none !important; padding: 0 !important; }
+    .appbar, .bnav, .toast, .sheet, .tip, #mineRange .frow, #minePresets, .printbtn, .hq, .morebtn, #csvCard, .seg, .chips button, select, .status:empty { display: none !important; }
+    main { margin: 0 !important; padding: 0 !important; }
+    .card, .kpi { box-shadow: none !important; border: 1px solid #DDE3E1; break-inside: avoid; page-break-inside: avoid; }
+    .kpi.hero, .quad, .chip, .stats div, .frange { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .scroll { overflow: visible !important; } .chart svg { max-width: 100%; } h1, h2, h3 { break-after: avoid; }
+    .frange { background: none !important; padding: 0 !important; } #mineRangeHint { font-size: 12px; color: #333; }
+    details.held { display: block; } details.held > :not(summary) { display: block; }
+  }
 </style>
 </head>
 <body class="tab-home">
@@ -367,7 +404,7 @@
       <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="artQ" type="search" placeholder="タイトルで探す" aria-label="記事をタイトルで探す"></div>
       <div class="chips" id="artSort" role="group" aria-label="記事の並べかえ"></div>
     </div>
-    <div class="card"><div class="count" id="artCount"></div><div class="list alist" id="artList"></div><button class="morebtn hidden" id="artMore">もっと見る</button></div>
+    <div class="card"><div class="count" id="artCount"></div><div class="hint" id="artImpHint" style="margin:-2px 0 6px"></div><div class="list alist" id="artList"></div><button class="morebtn hidden" id="artMore">もっと見る</button></div>
     <div class="grid2">
       <div class="card"><h2>読まれたのにスキが少ない<small id="lowSub"></small></h2><div class="hint" style="margin-bottom:6px">PVは多いのに、スキ率が下から4分の1に入る記事。最後のひと言やまとめで変わるかも</div><div class="list" id="lowList"></div></div>
       <div class="card"><h2>隠れた名作<small id="hidSub"></small></h2><div class="hint" style="margin-bottom:6px">PVは少なめなのに、スキ率が上から4分の1に入る記事。もう一度紹介する候補</div><div class="list" id="hidList"></div></div>
@@ -392,16 +429,18 @@
   </section>
 
   <section id="t-mine" class="hidden">
-    <div class="ptitle"><h1>自分の分析</h1><div class="meta" id="mineMeta"></div></div>
+    <div class="ptitle"><h1>自分の分析</h1><div class="meta"><span id="mineMeta"></span><button class="mini printbtn" type="button" id="btnPrint" title="ブラウザの印刷を開きます。「PDFに保存」を選ぶとPDFになります">印刷・PDF</button></div></div>
     <div class="card">
       <div class="frange" id="mineRange" role="group" aria-label="期間を指定" style="margin-bottom:12px">
         <div class="frow"><div><label for="mineFrom">開始日</label><input id="mineFrom" type="date"></div><span class="tilde" aria-hidden="true">〜</span><div><label for="mineTo">終了日</label><input id="mineTo" type="date"></div></div>
         <div class="chips" id="minePresets" role="group" aria-label="よく使う期間"></div>
         <div class="hint" id="mineRangeHint"></div>
       </div>
-      <div class="kpis k4" id="mineKpis"></div>
+      <div class="kpis k4 k6" id="mineKpis"></div>
       <h2 style="font-size:15px;margin:4px 0 8px">毎日のPVとスキ<small id="mineTrendSub" style="font-size:12px;color:var(--sub);font-weight:500"></small></h2>
       <div class="chart" id="mineTrend"></div>
+      <h2 style="font-size:15px;margin:16px 0 8px">毎日のインプレッションと読まれた率<small id="mineImpSub" style="font-size:12px;color:var(--sub);font-weight:500"></small></h2>
+      <div class="chart" id="mineImp"></div>
       <h2 style="font-size:15px;margin:16px 0 8px">フォロワー数<small id="mineFolSub" style="font-size:12px;color:var(--sub);font-weight:500"></small></h2>
       <div class="chart" id="mineFol"></div>
       <ul class="notes hint" id="mineNotes" style="margin-top:10px"></ul>
@@ -414,7 +453,15 @@
     <div class="card mine-sec" id="worksCard"><h2>何が効いているか<small id="worksSub"></small></h2>
       <div class="chips" id="worksTabs" role="group" aria-label="くらべる項目" style="margin-bottom:8px"></div>
       <div class="scroll" id="worksTable"></div><div class="hint" id="worksHint" style="margin-top:6px"></div></div>
+    <div class="card mine-sec" id="impMapCard"><h2><span>表示×読まれた率の4区分 <button class="hq" type="button" data-help="quad" aria-label="「4区分」の説明">?</button></span><small id="impMapSub"></small></h2>
+      <div class="status" id="impMapStatus"></div><div class="chart" id="impMapChart"></div><div class="quads" id="impQuads"></div><div id="impHeld"></div><div class="hint" id="impMapHint" style="margin-top:6px"></div></div>
+    <div class="card mine-sec" id="cmpArtCard"><h2>2つの記事をくらべる<small id="cmpArtSub"></small></h2>
+      <div class="cmpsel"><div><label for="cmpA">記事 A</label><select id="cmpA"></select></div><div><label for="cmpB">記事 B</label><select id="cmpB"></select></div></div>
+      <div class="scroll" id="cmpArtTable"></div><div class="hint" id="cmpArtHint" style="margin-top:6px"></div></div>
     <div class="card mine-sec" id="oppCard"><h2>見直し候補<small id="oppSub"></small></h2>
+      <h3 class="subh" style="border-top:0;padding-top:0;margin-top:0">インプレッションから<small id="impRvSub" style="font-weight:500;color:var(--sub);font-size:12px"></small></h3>
+      <div class="rv3" id="impReview"></div>
+      <h3 class="subh">PVとスキ率から（真ん中の値で分けた図）</h3>
       <div class="chart" id="oppChart"></div><div class="hint" id="oppHint" style="margin:6px 0 10px"></div>
       <div class="grid2" style="margin-bottom:0">
         <div><h3 style="font-size:14px;margin:4px 0 6px">読まれたのに反応が少ない<br><small style="font-weight:500;color:var(--sub)">冒頭・中身を見直す候補</small></h3><div class="list" id="oppLowReact"></div></div>
@@ -536,6 +583,7 @@
   <p class="foot">note分析シート｜公開データだけを読みます（自動スキ・自動コメント・自動フォローはしません）</p>
 </div></main>
 <div class="toast hidden" id="toast" role="status"></div>
+<div class="tip hidden" id="tip" role="tooltip"></div>
 <div class="sheet hidden" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheetin"><div class="sheethead"><b id="sheetTitle"></b><button class="iconbtn" id="sheetClose" type="button" aria-label="閉じる">✕</button></div><div id="sheetBody"></div></div></div>
 <script>
   /* note分析 スマホ画面（v1.4.0）。データは google.script.run で自分のスプレッドシートから読むだけ（外部には送りません）。
@@ -619,11 +667,13 @@
   function widthOf(host) { return Math.max(260, Math.round(host.getBoundingClientRect().width || host.clientWidth || 340)); }
   function legend(items) { return el('div', { class: 'legend' }, items.map(function (x) { return el('span', {}, [el('i', { class: x[2] ? 'ln' : null, style: { background: x[1] } }), x[0]]); })); }
   // 毎日のPV（棒）とスキの増え（線）。rows: [[日付, PV|null, スキ|null]]
-  function trendChart(host, rows) {
-    put(host, null);
+  // o（v1.8.0・省略可）：棒と線の名前・色・書式を変える（インプレッションと読まれた率のグラフで使う）
+  function trendChart(host, rows, o) {
+    o = o || {}; put(host, null);
+    var BN = o.bar || 'PV', LN = o.line || 'スキ', BC = o.barColor || '#A9E6DB', BH = o.barHi || '#2FB9A2', LC = o.lineColor || '#F0627A', LT = o.lineText || '#E0506B', LF = o.lineFmt || signed;
     var have = rows.filter(function (r) { return isNum(r[1]) || isNum(r[2]); });
     if (have.length < 2) {
-      add(host, empty('📈', '明日からグラフが伸びます', have.length ? 'いまは ' + mdw(have[0][0]) + ' の1日分です。毎日の自動取得で、1日に1本ずつ増えていきます。' : '毎日の記録がたまると、ここに「1日のPV」と「その日に増えたスキ」が並びます。'));
+      add(host, empty(o.icon || '📈', o.emptyTitle || '明日からグラフが伸びます', have.length ? 'いまは ' + mdw(have[0][0]) + ' の1日分です。' + (o.oneText || '毎日の自動取得で、1日に1本ずつ増えていきます。') : (o.emptyText || '毎日の記録がたまると、ここに「1日のPV」と「その日に増えたスキ」が並びます。')));
       return;
     }
     var hasPv = rows.some(function (r) { return isNum(r[1]); }), hasLk = rows.some(function (r) { return isNum(r[2]); });
@@ -632,36 +682,36 @@
     var bmax = niceMax(Math.max.apply(null, rows.map(function (r) { return isNum(r[bi]) ? r[bi] : 0; })));
     var lv = li > 0 ? rows.map(function (r) { return r[li]; }).filter(isNum) : [], lmin = Math.min(0, Math.min.apply(null, lv.concat([0]))), lmax = niceMax(Math.max.apply(null, lv.concat([1])));
     var y = function (v) { return T + (H - T - B) * (1 - v / bmax); }, yl = function (v) { return T + (H - T - B) * (1 - (v - lmin) / (lmax - lmin)); };
-    var cap = el('div', { class: 'cap' }), s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': '毎日のPVとスキのグラフ' });
+    var cap = el('div', { class: 'cap' }), s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': o.label || '毎日のPVとスキのグラフ' });
     [0, 0.5, 1].forEach(function (f) {
       var v = bmax * f; s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: '#E7EBE9', 'stroke-dasharray': f ? '3 4' : null }));
       s.appendChild(sv('text', { x: L - 6, y: y(v) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(v) }));
-      if (li > 0) s.appendChild(sv('text', { x: W - R + 6, y: yl(lmin + (lmax - lmin) * f) + 4, 'font-size': 11, fill: '#F0627A', text: short(lmin + (lmax - lmin) * f) }));
+      if (li > 0) s.appendChild(sv('text', { x: W - R + 6, y: yl(lmin + (lmax - lmin) * f) + 4, 'font-size': 11, fill: LC, text: short(lmin + (lmax - lmin) * f) + (o.lineUnit || '') }));
     });
     var bars = [], last = -1;
     rows.forEach(function (r, i) {
       var v = r[bi]; if (isNum(v)) last = i;
       if (!isNum(v)) { bars.push(null); return; }
       var bw = Math.max(2, Math.min(22, cw * 0.62)), x = L + cw * i + (cw - bw) / 2, yy = y(Math.max(0, v));
-      var b = sv('rect', { x: x, y: yy, width: bw, height: Math.max(1, y(0) - yy), rx: Math.min(4, bw / 2), fill: hasPv ? '#A9E6DB' : '#F7B3BF' }); s.appendChild(b); bars.push(b);
+      var b = sv('rect', { x: x, y: yy, width: bw, height: Math.max(1, y(0) - yy), rx: Math.min(4, bw / 2), fill: hasPv ? BC : '#F7B3BF' }); s.appendChild(b); bars.push(b);
     });
     if (li > 0) {
       var d = '', pen = false;
       rows.forEach(function (r, i) { if (!isNum(r[li])) { pen = false; return; } var x = L + cw * (i + 0.5); d += (pen ? 'L' : 'M') + x.toFixed(1) + ',' + yl(r[li]).toFixed(1) + ' '; pen = true; });
-      s.appendChild(sv('path', { d: d, fill: 'none', stroke: '#F0627A', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
-      rows.forEach(function (r, i) { if (isNum(r[li])) s.appendChild(sv('circle', { cx: L + cw * (i + 0.5), cy: yl(r[li]), r: n > 20 ? 2.2 : 3, fill: '#fff', stroke: '#F0627A', 'stroke-width': 2 })); });
+      s.appendChild(sv('path', { d: d, fill: 'none', stroke: LC, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      rows.forEach(function (r, i) { if (isNum(r[li])) s.appendChild(sv('circle', { cx: L + cw * (i + 0.5), cy: yl(r[li]), r: n > 20 ? 2.2 : 3, fill: '#fff', stroke: LC, 'stroke-width': 2 })); });
     }
     var lab = [0, Math.floor((n - 1) / 2), n - 1].filter(function (v, i, a) { return a.indexOf(v) === i; });
     lab.forEach(function (i) { s.appendChild(sv('text', { x: L + cw * (i + 0.5), y: H - 6, 'font-size': 11, fill: '#8B9592', 'text-anchor': i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle', text: md(rows[i][0]) })); });
     var cur = sv('line', { x1: 0, x2: 0, y1: T, y2: H - B, stroke: '#1B2220', 'stroke-opacity': 0.18, 'stroke-width': 1, visibility: 'hidden' }); s.appendChild(cur);
     function pick(i) {
-      var r = rows[i]; put(cap, [el('span', { text: mdw(r[0]) }), hasPv ? el('span', {}, ['PV ', el('b', { class: 'num', text: fmt(r[1]) })]) : null, hasLk ? el('span', {}, ['スキ ', el('b', { class: 'num', style: { color: '#E0506B' }, text: isNum(r[2]) ? signed(r[2]) : '—' })]) : null]);
-      bars.forEach(function (b, j) { if (b) b.setAttribute('fill', j === i ? (hasPv ? '#2FB9A2' : '#F0627A') : (hasPv ? '#A9E6DB' : '#F7B3BF')); });
+      var r = rows[i]; put(cap, [el('span', { text: mdw(r[0]) }), hasPv ? el('span', {}, [BN + ' ', el('b', { class: 'num', text: fmt(r[1]) })]) : null, hasLk ? el('span', {}, [LN + ' ', el('b', { class: 'num', style: { color: LT }, text: isNum(r[2]) ? LF(r[2]) : '—' })]) : null]);
+      bars.forEach(function (b, j) { if (b) b.setAttribute('fill', j === i ? (hasPv ? BH : '#F0627A') : (hasPv ? BC : '#F7B3BF')); });
       cur.setAttribute('x1', L + cw * (i + 0.5)); cur.setAttribute('x2', L + cw * (i + 0.5)); cur.setAttribute('visibility', 'visible');
     }
     rows.forEach(function (r, i) { var hit = sv('rect', { x: L + cw * i, y: 0, width: cw, height: H, fill: 'transparent' }); hit.addEventListener('pointerenter', function () { pick(i); }); hit.addEventListener('click', function () { pick(i); }); s.appendChild(hit); });
-    add(host, [cap, s, legend([hasPv ? ['1日のPV（日次）', '#A9E6DB'] : null, hasLk ? ['その日に増えたスキ', '#F0627A', li > 0] : null].filter(Boolean))]);
-    if (!hasPv) add(host, el('div', { class: 'hint', style: { marginTop: '4px' }, text: 'PVの日次データがまだありません。PVの自動取得（Cookie / GitHub）をオンにするか、「その他 → 記録」で「日次」を入れると、PVの棒が出ます。' }));
+    add(host, [cap, s, legend([hasPv ? [o.barLegend || '1日のPV（日次）', BC] : null, hasLk ? [o.lineLegend || 'その日に増えたスキ', LC, li > 0] : null].filter(Boolean))]);
+    if (!hasPv && !o.bar) add(host, el('div', { class: 'hint', style: { marginTop: '4px' }, text: 'PVの日次データがまだありません。PVの自動取得（Cookie / GitHub）をオンにするか、「その他 → 記録」で「日次」を入れると、PVの棒が出ます。' }));
     pick(last < 0 ? n - 1 : last);
   }
   // 折れ線（複数）。series: [{name, color, pts: [[ラベル, 値|null]]}]
@@ -760,8 +810,54 @@
   function aiResult(r, statusId) { if (r.usage) setUsage(r.usage); if (!r.ok) { if (r.code === 'NOKEY') { D.hasKey = false; renderHome(D); } status(statusId, r.message, 'err'); return false; } return true; }
 
   /* ---------- ホーム ---------- */
-  function kpi(label, value, unit, subs, cls) {
-    return el('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, [el('div', { class: 'l' }, [el('span', { class: 'dot' }), label]),
+  /* v1.8.0：指標の説明（？を押すと1行の説明）。数字の意味だけを書く（良い・悪いは言わない） */
+  var DEF = {
+    pv: ['PV（ページビュー）', '記事が開かれた回数。同じ人が2回開くと2回と数えます（note のダッシュボードの数字）。'],
+    pvTotal: ['全期間のPV', '記事ごとの、公開からこれまでのPVの合計（最後に記録した日の時点）。'],
+    imp: ['インプレッション', '記事が一覧・おすすめ・検索結果などに表示された回数（note のダッシュボードの数字）。'],
+    ctr: ['読まれた率', '表示（インプレッション）のうち、開いて読まれた割合＝PV÷インプレッション。検索やSNSなど外からのPVも入るので、100%をこえることがあります。'],
+    likes: ['スキ', 'スキされた数（自分のスキは数えません）。'],
+    rate: ['スキ率', '読んだ人のうちスキした割合＝スキ÷PV。'],
+    comments: ['コメント', 'コメントの数（note の数字）。'],
+    sales: ['売上', '有料記事などの売上（note のダッシュボードの数字・円）。'],
+    fol: ['フォロワー', '記録した日のフォロワー数の増減。さかのぼっては取れません。'],
+    yday: ['昨日のPV', '前日1日のPV（日次の記録の合計）。'],
+    g7: ['7日で増えたスキ', '直近7日間に増えたスキの数（記事推移の記録から）。'],
+    newFans: ['新しいファン', '前回の取得のあと、はじめてスキ・コメントしてくれた人の数。'],
+    unreplied: ['未返信のコメント', 'まだ返信していないコメントの数（記録した時点）。'],
+    likers: ['スキしてくれた人', '1回以上スキしてくれた人の数（自分は除く）。'],
+    commenters: ['コメントしてくれた人', '1回以上コメントしてくれた人の数（自分は除く）。'],
+    newPeople: ['前回から新しく', '前回の取得のあと、はじめて記録した人の数。'],
+    weekNew: ['今週はじめて', 'この7日間に、はじめてスキ・コメントしてくれた人の数。'],
+    days: ['記録した日数', 'その数字を記録できた日の数。記録がない日は数えません（0 にもしません）。'],
+    median: ['真ん中の値（中央値）', '小さい順に並べたときの真ん中の値。とびぬけた記事に引っぱられにくい。'],
+    held: ['保留', '数字が少ない（表示' + 100 + '回未満・公開3日未満など）記事。たまたまの差が大きいので、区分に入れていません。'],
+    quad: ['4区分', 'この期間のインプレッションと読まれた率を、自分の記事の真ん中の値（中央値）で分けた図。くらべられる記事が6本以上のときに出ます。'],
+    cmp: ['前の期間とくらべて', 'すぐ前の同じ日数の期間との差。記録した日数がちがうときは「1日あたり」でくらべます。']
+  };
+  var HELP_RE = [[/読まれた率/, 'ctr'], [/インプレッション/, 'imp'], [/スキ率/, 'rate'], [/全期間のPV/, 'pvTotal'], [/PV/, 'pv'], [/スキされた数/, 'likes'], [/フォロワー/, 'fol'], [/新しいファン/, 'newFans'], [/未返信/, 'unreplied'],
+    [/スキしてくれた人/, 'likers'], [/コメントしてくれた人/, 'commenters'], [/前回から新しく/, 'newPeople'], [/今週はじめて/, 'weekNew']];
+  function helpKey(label) { var t = String(label || ''); for (var i = 0; i < HELP_RE.length; i++) if (HELP_RE[i][0].test(t)) return HELP_RE[i][1]; return ''; }
+  function hq(key) { var d = DEF[key]; return d ? el('button', { class: 'hq', type: 'button', 'data-help': key, 'aria-label': '「' + d[0] + '」の説明', 'aria-expanded': 'false' }, '?') : null; }
+  var TIP_AT = null;
+  function hideTip() { var t = $('tip'); t.classList.add('hidden'); if (TIP_AT) { TIP_AT.setAttribute('aria-expanded', 'false'); TIP_AT.removeAttribute('aria-describedby'); } TIP_AT = null; }
+  function showTip(b) {
+    if (TIP_AT === b) { hideTip(); return; }
+    hideTip(); var d = DEF[b.getAttribute('data-help')]; if (!d) return;
+    var t = put('tip', [el('b', { text: d[0] }), el('span', { text: d[1] })]); t.classList.remove('hidden');
+    var r = b.getBoundingClientRect(), w = Math.min(300, document.documentElement.clientWidth - 16), left = Math.max(8, Math.min(r.left + window.scrollX - 20, window.scrollX + document.documentElement.clientWidth - w - 8));
+    t.style.maxWidth = w + 'px'; t.style.left = left + 'px'; t.style.top = (r.bottom + window.scrollY + 6) + 'px';
+    b.setAttribute('aria-expanded', 'true'); b.setAttribute('aria-describedby', 'tip'); TIP_AT = b;
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.hq') : null;
+    if (b) { e.preventDefault(); e.stopPropagation(); showTip(b); return; }
+    if (TIP_AT && !(e.target.closest && e.target.closest('#tip'))) hideTip();
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && TIP_AT) { var b = TIP_AT; hideTip(); b.focus(); } });
+  function kpi(label, value, unit, subs, cls, help) {
+    var hk = help === undefined ? helpKey(label) : help;
+    return el('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, [el('div', { class: 'l' }, [el('span', { class: 'dot' }), label, hk ? hq(hk) : null]),
       el('div', { class: 'v num' }, [value, unit ? el('small', { text: unit }) : null]), el('div', { class: 's' }, subs)]);
   }
   function logState(r) { r = String(r || ''); return /成功|完了/.test(r) && !/エラー|失敗/.test(r) ? 'ok' : /エラー|失敗|止/.test(r) ? 'ng' : 'wait'; }
@@ -893,10 +989,15 @@
 
   /* ---------- 記事タブ ---------- */
   // [キー, 多い順（1回目）, 少ない順（もう一度押したとき）]。「スキが多い順」は2番目に置いて、スマホでもすぐ見えるように
-  var SORTS = [['date', '新しい順', '古い順'], ['likes', 'スキが多い順', 'スキが少ない順'], ['pv', 'PVが多い順', 'PVが少ない順'], ['yday', '昨日のPV順', '昨日のPVが少ない順'], ['g7', '7日で伸びた順', '7日の伸びが小さい順'], ['rate', 'スキ率が高い順', 'スキ率が低い順'], ['comments', 'コメントが多い順', 'コメントが少ない順']];
-  var SORT_COL = { date: 2, pv: 6, yday: 7, likes: 4, rate: 8, comments: 5, g7: 10 };
+  var SORTS = [['date', '新しい順', '古い順'], ['likes', 'スキが多い順', 'スキが少ない順'], ['pv', 'PVが多い順', 'PVが少ない順'], ['yday', '昨日のPV順', '昨日のPVが少ない順'], ['g7', '7日で伸びた順', '7日の伸びが小さい順'], ['rate', 'スキ率が高い順', 'スキ率が低い順'], ['comments', 'コメントが多い順', 'コメントが少ない順'],
+    ['imp', '表示が多い順', '表示が少ない順'], ['ctr', '読まれた率が高い順', '読まれた率が低い順']];
+  var SORT_COL = { date: 2, pv: 6, yday: 7, likes: 4, rate: 8, comments: 5, g7: 10, imp: 11, ctr: 12 };
+  var ART_MIN_IMP = 100;   // 読まれた率を出す最低の表示回数（記録した日の合計）。たまたまの差が大きいため
+  function artHasImp() { return !!(D && D.impInfo && D.impInfo.days); }
+  function artCtr(r) { return isNum(r[11]) && r[11] >= ART_MIN_IMP && isNum(r[12]) ? r[12] : null; }
   function renderArtSort() {
-    put('artSort', SORTS.map(function (s) {
+    if (!artHasImp() && (ART.sort === 'imp' || ART.sort === 'ctr')) ART.sort = 'date';
+    put('artSort', SORTS.filter(function (s) { return artHasImp() || (s[0] !== 'imp' && s[0] !== 'ctr'); }).map(function (s) {
       var on = ART.sort === s[0];
       return el('button', { type: 'button', class: on ? 'on' : null, 'data-sort': s[0], 'aria-pressed': on ? 'true' : 'false', title: on ? 'もう一度押すと逆の順' : null, onclick: function () { if (ART.sort === s[0]) ART.asc = !ART.asc; else { ART.sort = s[0]; ART.asc = false; } ART.limit = 60; renderArtSort(); renderArticles(); } }, on && ART.asc ? s[2] : s[1]);
     }));
@@ -905,17 +1006,21 @@
     var rows = (D && D.articles) || [], q = ART.q.trim().toLowerCase(), c = SORT_COL[ART.sort];
     var list = rows.filter(function (r) { return !q || String(r[1]).toLowerCase().indexOf(q) >= 0; });
     list.sort(function (a, b) {
-      var x = a[c], y = b[c];
+      var x = c === 12 ? artCtr(a) : a[c], y = c === 12 ? artCtr(b) : b[c];
       if (c === 2) return ART.asc ? (x < y ? -1 : x > y ? 1 : 0) : (x < y ? 1 : x > y ? -1 : 0);
       var nx = isNum(x), ny = isNum(y); if (nx !== ny) return nx ? -1 : 1;   // 数字がない記事はいつも下
       return ART.asc ? x - y : y - x;
     });
     $('artCount').textContent = list.length + '本' + (q ? '（「' + ART.q.trim() + '」で絞り込み）' : '') + ((D && D.articleCount > rows.length) ? '・新しい ' + rows.length + '本まで' : '');
+    var imp = artHasImp(), II = (D && D.impInfo) || {};
+    put('artImpHint', imp ? ['表示＝インプレッション（' + ymdJ(II.from) + '〜' + ymdJ(II.to) + 'の記録 ' + II.days + '日分の合計）', hq('imp'), '　読まれた率＝PV÷表示（表示' + ART_MIN_IMP + '回以上の記事だけ）', hq('ctr'), '　スキ率＝スキ÷PV', hq('rate')] : null);
     put('artList', list.length ? list.slice(0, ART.limit).map(function (r) {
       var hl = function (k) { return ART.sort === k ? 'on' : null; };
       return el('div', { class: 'arow' }, [link(r[1], r[3], 'tt'), el('div', { class: 'dt' }, [el('span', { text: '公開 ' + mdw(r[2]) }), isNum(r[7]) ? chip('昨日 ' + fmt(r[7]) + ' PV', 'g') : null, isNum(r[10]) && r[10] > 0 ? chip('スキ ' + signed(r[10]) + '（7日）', 'new') : null]),
-        el('div', { class: 'stats num' }, [el('div', { class: hl('pv') }, [el('b', { text: fmt(r[6]) }), el('span', { text: 'PV' })]), el('div', { class: hl('likes') }, [el('b', { text: fmt(r[4]) }), el('span', { text: 'スキ' })]),
-          el('div', { class: hl('comments') }, [el('b', { text: fmt(r[5]) }), el('span', { text: 'コメント' })]), el('div', { class: hl('rate') }, [el('b', { text: isNum(r[8]) ? r[8] + '%' : '—' }), el('span', { text: 'スキ率' })])])]);
+        el('div', { class: 'stats num' + (imp ? ' s6' : '') }, [el('div', { class: hl('pv') }, [el('b', { text: fmt(r[6]) }), el('span', { text: 'PV' })]), el('div', { class: hl('likes') }, [el('b', { text: fmt(r[4]) }), el('span', { text: 'スキ' })]),
+          el('div', { class: hl('comments') }, [el('b', { text: fmt(r[5]) }), el('span', { text: 'コメント' })]), el('div', { class: hl('rate') }, [el('b', { text: isNum(r[8]) ? r[8] + '%' : '—' }), el('span', { text: 'スキ率' })]),
+          imp ? el('div', { class: hl('imp') }, [el('b', { text: fmt(r[11]) }), el('span', { text: '表示' })]) : null,
+          imp ? el('div', { class: (hl('ctr') || '') + (isNum(r[12]) && artCtr(r) === null ? ' low' : ''), title: isNum(r[12]) && artCtr(r) === null ? '表示が' + ART_MIN_IMP + '回未満なので出していません' : null }, [el('b', { text: isNum(artCtr(r)) ? artCtr(r) + '%' : '—' }), el('span', { text: '読まれた率' })]) : null])]);
     }) : empty('🔍', q ? '見つかりませんでした' : '記事がまだありません', q ? '別のことばで探してみてください。' : '「今すぐ取得する」で記事一覧を取ってきます。'));
     $('artMore').classList.toggle('hidden', list.length <= ART.limit);
     $('artMeta').textContent = rows.some(function (r) { return isNum(r[6]); }) ? 'PV・スキ率は「PV入力」の全期間の値から' : 'PVを記録すると、PV・スキ率も並びます';
@@ -1345,6 +1450,7 @@
       renderMine();
     }, function (m) { if (MINE.key !== key) return; MINE.loading = false; MINE.err = m; renderMine(); });
   }
+  $('btnPrint').onclick = function () { hideTip(); try { window.print(); } catch (e) { toast('この画面からは印刷を開けませんでした。ブラウザのメニューの「印刷」を使ってください。'); } };
   function onMineInput() { var a = $('mineFrom').value, b = $('mineTo').value; if (!validDay(a) || !validDay(b)) return; MINE.from = a; MINE.to = b; loadMine(); }
   $('mineFrom').addEventListener('change', onMineInput); $('mineTo').addEventListener('change', onMineInput);
   document.querySelectorAll('#curveSeg button').forEach(function (b) { b.onclick = function () { MINE.curve = b.getAttribute('data-c'); document.querySelectorAll('#curveSeg button').forEach(function (x) { x.classList.toggle('on', x === b); }); renderCurves(); drawMineCharts(); }; });
@@ -1363,21 +1469,33 @@
     var c = R.cur, p = R.prev, cp = R.cmp, prevTxt = '前の' + R.days + '日（' + md(R.prevFrom) + '〜' + md(R.prevTo) + '）とくらべて';
     $('mineMeta').textContent = '@' + MINE.data.id;
     $('mineRangeHint').textContent = md(R.from) + '〜' + md(R.to) + '（' + R.days + '日間）。' + prevTxt + '。記録した日数がちがうときは「1日あたり」でくらべます。';
+    var ci = c.imp || {}, cpi = cp.imp, cpc = cp.ctr, ptChip = function (x) { return x ? chip((x.diff > 0 ? '▲ +' : x.diff < 0 ? '▼ −' : '± ') + Math.abs(x.diff) + 'ポイント', x.diff > 0 ? 'up' : x.diff < 0 ? 'down' : '') : chip('前の期間は記録なし'); };
+    var impStart = R.cover && R.cover.impFrom ? '記録は' + ymdJ(R.cover.impFrom) + 'から' : '';
     put('mineKpis', [
       kpi('PV', isNum(c.pv.sum) ? fmt(c.pv.sum) : '—', '', isNum(c.pv.sum) ? [cmpChip(cp.pv), el('span', { text: c.pv.days < R.days ? '記録 ' + c.pv.days + '日分' : '毎日の記録あり' })] : [el('span', { text: 'この期間のPVの記録なし' })], 'hero'),
+      kpi('インプレッション', isNum(ci.sum) ? fmt(ci.sum) : '—', '', isNum(ci.sum) ? [cmpChip(cpi), el('span', { text: ci.days < R.days ? '記録 ' + ci.days + '日分（' + md(ci.first) + '〜' + md(ci.last) + '）' : '毎日の記録あり' })] : [el('span', { text: impStart ? 'この期間の記録なし（' + impStart + '）' : '自動取得で記録すると出ます' })]),
+      kpi('読まれた率', isNum(ci.ctr) ? String(ci.ctr) : '—', isNum(ci.ctr) ? '%' : '', isNum(ci.ctr) ? [ptChip(cpc), el('span', { text: 'PV÷インプレッション（' + ci.days + '日）' })] : [el('span', { text: isNum(ci.sum) ? 'PVの合計がない日があるため出せません' : 'インプレッションの記録で出ます' })]),
       kpi('スキされた数', isNum(c.likes.sum) ? fmt(c.likes.sum) : '—', '', isNum(c.likes.sum) ? [cmpChip(cp.likes), c.likes.days < R.days ? el('span', { text: c.likes.days + '日分' }) : null] : [el('span', { text: '「スキした人」の記録で出ます' })]),
-      kpi('フォロワー', isNum(c.followers.diff) ? signed(c.followers.diff) : '—', isNum(c.followers.diff) ? '人' : '', [el('span', { text: isNum(c.followers.diff) ? md(c.followers.from) + '→' + md(c.followers.to) + '（' + c.followers.days + '日）' : c.followers.text }), cp.followers ? chip('前の期間 ' + signed(p.followers.diff)) : null]),
-      kpi('スキ率', isNum(c.rate.pct) ? String(c.rate.pct) : '—', isNum(c.rate.pct) ? '%' : '', isNum(c.rate.pct) ? [cp.rate ? chip((cp.rate.diff > 0 ? '▲ +' : cp.rate.diff < 0 ? '▼ −' : '± ') + Math.abs(cp.rate.diff) + 'ポイント', cp.rate.diff > 0 ? 'up' : cp.rate.diff < 0 ? 'down' : '') : chip('前の期間は記録なし'), el('span', { text: 'スキ÷PV（PVを記録した' + c.rate.days + '日）' })] : [el('span', { text: 'PVとスキの両方の記録で出ます' })])]);
+      kpi('スキ率', isNum(c.rate.pct) ? String(c.rate.pct) : '—', isNum(c.rate.pct) ? '%' : '', isNum(c.rate.pct) ? [ptChip(cp.rate), el('span', { text: 'スキ÷PV（PVを記録した' + c.rate.days + '日）' })] : [el('span', { text: 'PVとスキの両方の記録で出ます' })]),
+      kpi('フォロワー', isNum(c.followers.diff) ? signed(c.followers.diff) : '—', isNum(c.followers.diff) ? '人' : '', [el('span', { text: isNum(c.followers.diff) ? md(c.followers.from) + '→' + md(c.followers.to) + '（' + c.followers.days + '日）' : c.followers.text }), cp.followers ? chip('前の期間 ' + signed(p.followers.diff)) : null])]);
+    var isr = R.series.filter(function (r) { return isNum(r[5]); });
+    $('mineImpSub').textContent = isr.length ? '記録 ' + isr.length + '日分' + (isr.length > 1 ? '（' + md(isr[0][0]) + '〜' + md(isr[isr.length - 1][0]) + '）' : '（' + md(isr[0][0]) + '）') : (impStart ? 'この期間の記録なし・' + impStart : 'まだ記録なし');
     $('mineTrendSub').textContent = winText(R.days, R.series, function (r) { return isNum(r[1]) || isNum(r[2]); }).replace('直近', '');
     var fs = R.series.filter(function (r) { return isNum(r[3]); }); $('mineFolSub').textContent = fs.length ? '記録 ' + fs.length + '日分' + (fs.length > 1 ? '（' + md(fs[0][0]) + '〜' + md(fs[fs.length - 1][0]) + '）' : '（' + md(fs[0][0]) + '）') : 'この期間の記録なし';
     put('mineNotes', R.notes.map(function (n) { return el('li', { text: n }); }));
-    renderCurves(); renderWorks(); renderOpp(); renderTriggers(); renderCsv();
+    renderCurves(); renderWorks(); renderImpMap(); renderCmpArt(); renderOpp(); renderTriggers(); renderCsv();
     drawMineCharts();
   }
   function drawMineCharts() {
     if ($('t-mine').classList.contains('hidden') || !MINE.data) return;
     var R = MINE.data.range;
     trendChart($('mineTrend'), R.series.map(function (r) { return [r[0], r[1], r[2]]; }));
+    var cv = R.cover || {};
+    trendChart($('mineImp'), R.series.map(function (r) { return [r[0], isNum(r[5]) ? r[5] : null, isNum(r[6]) ? r[6] : null]; }), { bar: 'インプレッション', line: '読まれた率', barColor: '#BFD3FB', barHi: '#4C8BF5', lineColor: '#12927F', lineText: '#12927F', lineUnit: '%',
+      lineFmt: function (v) { return v + '%'; }, barLegend: '1日のインプレッション', lineLegend: '読まれた率（PV÷インプレッション）', label: '毎日のインプレッションと読まれた率のグラフ', icon: '👀',
+      emptyTitle: cv.impFrom ? 'この期間はインプレッションの記録が足りません' : 'インプレッションはまだ記録がありません',
+      emptyText: cv.impFrom ? 'インプレッションの記録は ' + ymdJ(cv.impFrom) + '〜' + ymdJ(cv.impTo) + ' の ' + cv.impDays + '日分です。期間を変えてみてください。' : 'PVの自動取得で「インプレッション等も取る」を「はい」にすると、毎日の分と過去の分（少しずつさかのぼって）を記録します。',
+      oneText: 'インプレッションの記録が2日分以上あるとグラフになります。' });
     lineChart($('mineFol'), [{ name: 'フォロワー', color: '#2FB9A2', pts: R.series.map(function (r) { return [r[0], r[3]]; }) }], { area: true, label: 'フォロワー数', emptyTitle: 'まだ線になりません', emptyText: 'この期間のフォロワー数の記録が2日分以上あると線が出ます（さかのぼっては取れません）。' });
     var C = MINE.fixed && MINE.fixed.curves; if (!C) return;
     var k = MINE.curve, med = C[k], rows = C.rows.filter(function (r) { return (k === 'pv' ? r[4] : r[5]).some(isNum); }).slice(0, 4), cols = ['#9AA5B8', '#C3A6E6', '#F2B880', '#8FC3F0'];
@@ -1385,6 +1503,7 @@
     lineChart($('curveChart'), [{ name: 'ふだん（真ん中の値）', color: '#2FB9A2', pts: lab.map(function (l, i) { return [l, med[i].median]; }) }].concat(rows.map(function (r, j) { return { name: '「' + String(r[1]).slice(0, 12) + '…」', color: cols[j], pts: lab.map(function (l, i) { return [l, (k === 'pv' ? r[4] : r[5])[i]]; }) }; })),
       { label: '記事の伸び方', legend: true, emptyTitle: 'まだ出せません', emptyText: k === 'pv' ? '公開日から毎日の日次PVがそろった記事が出ると、線になります。' : '「スキした人」か「記事推移」の記録がある記事が出ると、線になります。' });
     var O = MINE.data.opp; scatter($('oppChart'), O);
+    impScatter($('impMapChart'), MINE.data.impMap);
   }
   function renderCurves() {
     var C = MINE.fixed && MINE.fixed.curves; if (!C) { put('curveMed', null); put('curveList', null); return; }
@@ -1419,6 +1538,17 @@
       : 'この期間に公開した記事で、PVの記録があるものが2本以上になると出ます' + (O.published ? '（公開 ' + O.published + '本・公開3日未満 ' + O.young + '本・PVなし ' + O.noPv + '本）' : '') + '。';
     put('oppLowReact', O.lowReact.length ? O.lowReact.map(oppItem) : el('div', { class: 'hint', text: 'いまは該当する記事はありません。' }));
     put('oppLowRead', O.lowRead.length ? O.lowRead.map(oppItem) : el('div', { class: 'hint', text: 'いまは該当する記事はありません。' }));
+    renderImpReview();
+  }
+  function impItem(r, big) { return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: fmt(r[4]) + ' 表示' }), el('span', { text: fmt(r[5]) + ' PV' }), big !== 'rate' && isNum(r[8]) ? el('span', { text: 'スキ率 ' + r[8] + '%' }) : null])]), el('div', { class: 'big num' }, big === 'rate' ? [pct(r[8]), el('small', { text: 'スキ率' })] : [pct(r[6]), el('small', { text: '読まれた率' })])]); }
+  function renderImpReview() {
+    var M = MINE.data.impMap, none = function (t) { return el('div', { class: 'hint', text: t }); };
+    if (!M || M.medImp === null) { $('impRvSub').textContent = ''; put('impReview', none(M ? (M.reason || '') : (MINE.data.impError || 'インプレッションの記録で出ます。'))); return; }
+    $('impRvSub').textContent = '（' + md(M.from) + '〜' + md(M.to) + '・' + M.n + '本・' + (M.strict ? '下・上から4分の1' : M.minN + '〜11本なので真ん中で分けた参考') + '）';
+    var col = function (title, sub, list, big, msg) { return el('div', {}, [el('h3', {}, [title, el('small', { text: sub })]), el('div', { class: 'list' }, list.length ? list.map(function (r) { return impItem(r, big); }) : none(msg || 'いまは該当する記事はありません。'))]); };
+    put('impReview', [col('タイトル・見出し画像', '表示は多いのに、読まれた率が低い', M.review.title),
+      col('本文（冒頭・構成）', '読まれた率は高いのに、スキ率が低い', M.review.body, 'rate', M.medLike === null ? 'スキの数が記録された記事が' + M.minN + '本以上になると出ます（いま ' + M.nLike + '本）。' : ''),
+      col('投稿時間・タグ', '読まれた率・スキ率はいいのに、表示が少ない', M.review.reach)]);
   }
   // 散布図：横＝PV、縦＝スキ率。点をタップするとタイトル
   function scatter(host, O) {
@@ -1435,6 +1565,106 @@
       var pick = function () { put(cap, [el('span', { text: md(p[2]) }), link(String(p[1]).slice(0, 40), p[3]), el('span', { class: 'num', text: fmt(p[4]) + ' PV・スキ率 ' + p[6] + '%' })]); };
       dot.addEventListener('click', pick); dot.addEventListener('pointerenter', pick); s.appendChild(dot); });
     add(host, [cap, s, legend([['読まれたのに反応が少ない', '#E8890C'], ['反応はいいのに読まれていない', '#12927F'], ['そのほか', '#B8C1BE']])]);
+  }
+  /* ---------- v1.8.0：表示×読まれた率の4区分・2記事くらべ ---------- */
+  function ymdJ(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? m[1] + '/' + (+m[2]) + '/' + (+m[3]) : String(d || ''); }
+  var QUAD_ORDER = ['reach', 'hit', 'quiet', 'title'];   // 2×2：散布図と同じ向き（右＝表示が多い、上＝読まれた率が高い）
+  var QUAD_COLOR = { hit: '#2FB9A2', title: '#E8890C', reach: '#4C8BF5', quiet: '#B8C1BE' };
+  var HELD_WHY = { young: '公開3日未満', low: '表示100回未満', noPv: 'PVの記録なし', few: '本数が足りない' };
+  function pct(v) { return isNum(v) ? v + '%' : '—'; }
+  function impLine(r) { return fmt(r[4]) + ' 表示・' + fmt(r[5]) + ' PV・読まれた率 ' + pct(r[6]); }
+  function impCover() { var cv = (MINE.data && MINE.data.range && MINE.data.range.cover) || {}; return cv.impFrom ? 'インプレッションの記録：' + ymdJ(cv.impFrom) + '〜' + ymdJ(cv.impTo) + '（' + cv.impDays + '日分）。' : ''; }
+  function renderImpMap() {
+    var M = MINE.data.impMap, err = MINE.data.impError, R = MINE.data.range;
+    status('impMapStatus', err || '', err ? 'err' : null);
+    put('impQuads', null); put('impHeld', null);
+    if (!M) { $('impMapSub').textContent = ''; $('impMapHint').textContent = err ? '' : 'このシートはまだインプレッションに対応していません（v1.8.0 以降で出ます）。'; return; }
+    $('impMapSub').textContent = md(M.from) + '〜' + md(M.to) + '・くらべた記事 ' + M.n + '本' + (M.held.length ? '・保留 ' + M.held.length + '本' : '');
+    if (!M.total) {
+      put('impHeld', empty('👀', R.cover && R.cover.impFrom ? 'この期間の記事ごとのインプレッションがありません' : 'インプレッションの記録はまだありません', (impCover() || '') + (R.cover && R.cover.impFrom ? '期間を変えてみてください。' : 'PVの自動取得で「インプレッション等も取る」を「はい」にすると、記事ごとの数字を毎日記録します。')));
+      $('impMapHint').textContent = ''; return;
+    }
+    if (M.reason && M.medImp === null) {
+      put('impHeld', el('div', { class: 'hint', text: M.reason }));
+    } else {
+      put('impQuads', QUAD_ORDER.map(function (q) {
+        var Q = M.quads[q], r = Q.rep;
+        return el('div', { class: 'quad ' + q, 'data-quad': q }, [el('div', { class: 'ql', text: Q.label }), el('div', { class: 'qn', text: Q.n + '本' }),
+          r ? el('div', { class: 'qr' }, ['例：', link(String(r[1]).slice(0, 40), r[3])]) : el('div', { class: 'qr hint', text: 'この区分の記事はありません' }),
+          r ? el('div', { class: 'qm num', text: impLine(r) }) : null, Q.n ? el('div', { class: 'qa', text: '→ ' + Q.action }) : null]);
+      }));
+    }
+    if (M.held.length) {
+      var why = Object.keys(HELD_WHY).filter(function (k) { return M.heldWhy[k]; }).map(function (k) { return HELD_WHY[k] + ' ' + M.heldWhy[k] + '本'; }).join('・');
+      put('impHeld', [M.reason && M.medImp === null ? el('div', { class: 'hint', text: M.reason, style: { marginBottom: '6px' } }) : null,
+        el('details', { class: 'held' }, [el('summary', {}, ['保留 ' + M.held.length + '本（' + why + '）', hq('held')]), el('ul', {}, M.held.slice(0, 30).map(function (r) { return el('li', {}, [link(String(r[1]).slice(0, 40), r[3]), '：' + fmt(r[4]) + ' 表示・' + HELD_WHY[r[13]]]); }))])]);
+    }
+    $('impMapHint').textContent = (M.medImp !== null ? '真ん中の値（' + M.n + '本）：インプレッション ' + fmt(M.medImp) + '・読まれた率 ' + M.medCtr + '%。' : '') +
+      '区分に入れる条件：この期間のインプレッション ' + M.minImp + ' 以上・公開3日以上・' + M.minN + '本以上。数字は期間の合計（記事ごとに記録した日だけ）。' + impCover() + '「例」は区分の中でいちばん数字が大きい記事です。';
+  }
+  // 散布図：横＝インプレッション（目盛りは対数）、縦＝読まれた率。点の色＝区分。点をタップするとタイトル
+  function impScatter(host, M) {
+    put(host, null); if (!M || M.medImp === null) return;
+    var all = (MINE.data.impArts || []).filter(function (r) { return r[4] >= M.minImp && isNum(r[6]) && r[12] >= 3; });
+    if (all.length < 2) return;
+    var W = widthOf(host), H = 200, L = 40, Rt = 12, T = 10, B = 26, lx = function (v) { return Math.log(Math.max(1, v)) / Math.LN10; };
+    var xmin = Math.floor(lx(Math.min.apply(null, all.map(function (r) { return r[4]; })))), xmax = Math.ceil(lx(Math.max.apply(null, all.map(function (r) { return r[4]; }))) + 0.0001), ym = niceMax(Math.max.apply(null, all.map(function (r) { return r[6]; })));
+    if (xmax <= xmin) xmax = xmin + 1;
+    var x = function (v) { return L + (W - L - Rt) * (lx(v) - xmin) / (xmax - xmin); }, y = function (v) { return T + (H - T - B) * (1 - v / ym); };
+    var cap = el('div', { class: 'cap' }, [el('span', { class: 'hint', text: '点をタップするとタイトルが出ます' })]), s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': 'インプレッションと読まれた率の散らばり' });
+    [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('line', { x1: L, x2: W - Rt, y1: y(ym * f), y2: y(ym * f), stroke: '#E7EBE9', 'stroke-dasharray': f ? '3 4' : null })); s.appendChild(sv('text', { x: L - 6, y: y(ym * f) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(ym * f) + '%' })); });
+    for (var e = xmin; e <= xmax; e++) s.appendChild(sv('text', { x: x(Math.pow(10, e)), y: H - 8, 'font-size': 11, fill: '#8B9592', 'text-anchor': e === xmin ? 'start' : e === xmax ? 'end' : 'middle', text: short(Math.pow(10, e)) + (e === xmax ? ' 表示' : '') }));
+    s.appendChild(sv('line', { x1: x(M.medImp), x2: x(M.medImp), y1: T, y2: H - B, stroke: '#C9D2CF', 'stroke-dasharray': '4 4' }));
+    s.appendChild(sv('line', { x1: L, x2: W - Rt, y1: y(M.medCtr), y2: y(M.medCtr), stroke: '#C9D2CF', 'stroke-dasharray': '4 4' }));
+    all.forEach(function (r) {
+      var q = r[4] >= M.medImp ? (r[6] >= M.medCtr ? 'hit' : 'title') : (r[6] >= M.medCtr ? 'reach' : 'quiet'), dot = sv('circle', { cx: x(r[4]), cy: y(Math.min(r[6], ym)), r: 4.5, fill: QUAD_COLOR[q], 'fill-opacity': 0.85, 'data-q': q });
+      var pick = function () { put(cap, [el('span', { text: md(r[2]) }), link(String(r[1]).slice(0, 40), r[3]), el('span', { class: 'num', text: impLine(r) })]); };
+      dot.addEventListener('click', pick); dot.addEventListener('pointerenter', pick); s.appendChild(dot);
+    });
+    add(host, [cap, s, legend(QUAD_ORDER.map(function (q) { return [M.quads[q].label, QUAD_COLOR[q]]; }))]);
+  }
+  /* 2つの記事をくらべる：期間の数字（インプレッションの記録から）・全期間・伸び方・区分 */
+  function cmpOptions() { return ((D && D.articles) || []).slice(0, 500); }
+  function renderCmpArt() {
+    var arts = cmpOptions(), ia = {}, R = MINE.data.range, M = MINE.data.impMap, qOf = {};
+    (MINE.data.impArts || []).forEach(function (r) { ia[r[0]] = r; });
+    if (M && M.medImp !== null) Object.keys(M.quads).forEach(function (q) { M.quads[q].items.forEach(function (r) { qOf[r[0]] = M.quads[q].label; }); });
+    if (M) M.held.forEach(function (r) { qOf[r[0]] = '保留（' + HELD_WHY[r[13]] + '）'; });
+    if (arts.length < 2) { put('cmpA', null); put('cmpB', null); put('cmpArtTable', empty('🔍', '記事が2本以上になると、くらべられます', '')); $('cmpArtHint').textContent = ''; $('cmpArtSub').textContent = ''; return; }
+    var has = function (k) { return arts.some(function (a) { return a[0] === k; }); };
+    if (!MINE.cmpA || !has(MINE.cmpA) || !MINE.cmpB || !has(MINE.cmpB) || MINE.cmpA === MINE.cmpB) {
+      var top = (MINE.data.impArts || []).filter(function (r) { return has(r[0]); }).slice(0, 2).map(function (r) { return r[0]; });
+      MINE.cmpA = top[0] || arts[0][0]; MINE.cmpB = top[1] && top[1] !== MINE.cmpA ? top[1] : arts.filter(function (a) { return a[0] !== MINE.cmpA; })[0][0];
+    }
+    ['cmpA', 'cmpB'].forEach(function (id) {
+      var sel = $(id); put(sel, arts.map(function (a) { return el('option', { value: a[0], text: md(a[2]) + '　' + String(a[1]).slice(0, 34) }); })); sel.value = MINE[id];
+      sel.onchange = function () { MINE[id] = sel.value; renderCmpArt(); };
+    });
+    var A = arts.filter(function (a) { return a[0] === MINE.cmpA; })[0], B = arts.filter(function (a) { return a[0] === MINE.cmpB; })[0], pa = ia[A[0]] || null, pb = ia[B[0]] || null;
+    var C = MINE.fixed && MINE.fixed.curves, cv = {}; if (C) C.rows.forEach(function (r) { cv[r[0]] = r; });
+    var days = function (a) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(a[2] || ''); return m ? Math.max(0, Math.floor((Date.parse(jstDay(0)) - Date.UTC(+m[1], +m[2] - 1, +m[3])) / 864e5)) : null; };
+    var rows = [], grp = function (t) { rows.push(el('tr', { class: 'grp' }, [el('td', { colspan: 3, text: t })])); };
+    var line = function (label, help, va, vb, f, cmp) {
+      var hiA = cmp && isNum(va) && isNum(vb) && va !== vb && (va > vb), hiB = cmp && isNum(va) && isNum(vb) && va !== vb && (vb > va);
+      rows.push(el('tr', {}, [el('td', {}, [label, help ? hq(help) : null]), el('td', { class: 'num' + (hiA ? ' hi' : ''), text: isNum(va) ? f(va) : '—' }), el('td', { class: 'num' + (hiB ? ' hi' : ''), text: isNum(vb) ? f(vb) : '—' })]));
+    };
+    var n = function (v) { return fmt(v); }, P = function (v) { return v + '%'; }, Y = function (v) { return '¥' + fmt(v); };
+    grp('この期間（' + md(R.from) + '〜' + md(R.to) + '・記事ごとに記録した日だけ）');
+    line('インプレッション', 'imp', pa && pa[4], pb && pb[4], n, true); line('PV', 'pv', pa && pa[5], pb && pb[5], n, true); line('読まれた率', 'ctr', pa && pa[6], pb && pb[6], P, true);
+    line('スキ', 'likes', pa && pa[7], pb && pb[7], n, true); line('スキ率', 'rate', pa && pa[8], pb && pb[8], P, true); line('コメント', 'comments', pa && pa[9], pb && pb[9], n, true);
+    if ((pa && isNum(pa[10]) && pa[10] > 0) || (pb && isNum(pb[10]) && pb[10] > 0)) line('売上', 'sales', pa && pa[10], pb && pb[10], Y, true);
+    line('記録した日数', 'days', pa && pa[11], pb && pb[11], function (v) { return v + '日'; }, false);
+    rows.push(el('tr', {}, [el('td', {}, ['区分', hq('quad')]), el('td', { text: qOf[A[0]] || '—' }), el('td', { text: qOf[B[0]] || '—' })]));
+    grp('全期間（いまの数・最後に記録した時点）');
+    line('全期間のPV', 'pvTotal', A[6], B[6], n, true); line('スキ', 'likes', A[4], B[4], n, true); line('コメント', 'comments', A[5], B[5], n, true); line('スキ率', 'rate', A[8], B[8], P, true);
+    line('インプレッション（記録した日の合計）', 'imp', A[11], B[11], n, true); line('読まれた率（同じ日のPVから）', 'ctr', A[11] >= 100 ? A[12] : null, B[11] >= 100 ? B[12] : null, P, true);
+    grp('公開と伸び方');
+    rows.push(el('tr', {}, [el('td', { text: '公開日' }), el('td', { text: A[2] ? mdw(A[2]) : '—' }), el('td', { text: B[2] ? mdw(B[2]) : '—' })]));
+    line('公開からの日数', null, days(A), days(B), function (v) { return v + '日'; }, false);
+    if (C) { [1, 2].forEach(function (i) { line(C.points[i] + '日目までのスキ', 'likes', cv[A[0]] ? cv[A[0]][5][i] : null, cv[B[0]] ? cv[B[0]][5][i] : null, n, true); line(C.points[i] + '日目までのPV', 'pv', cv[A[0]] ? cv[A[0]][4][i] : null, cv[B[0]] ? cv[B[0]][4][i] : null, n, true); }); }
+    put('cmpArtTable', el('table', { class: 'cmpt' }, [el('thead', {}, el('tr', {}, [el('th', { text: '' }), el('th', {}, link('A', A[3])), el('th', {}, link('B', B[3]))])), el('tbody', {}, rows)]));
+    $('cmpArtSub').textContent = '数字が大きいほうを緑の太字にしています';
+    $('cmpArtHint').textContent = '「この期間」はインプレッションを記録した日の合計です（記録がない記事は —）。読まれた率は、表示が100回未満のときは出していません。' + impCover() + 'テーマ・公開日のちがいも数字に表れるので、「どこがちがうか」を見る材料として使ってください。';
   }
   function renderTriggers() {
     var F = MINE.data.triggers;
@@ -1469,11 +1699,19 @@
   }
   function copyCsv(rows) { copyText(csvText(rows).replace(/^\uFEFF/, ''), 'CSVをコピーしました（' + (rows.length - 1) + '行）。スプレッドシートやメモ帳に貼り付けてください。'); }
   function csvArticles() {
-    return [['公開日', 'タイトル', 'URL', 'スキ', 'コメント', '全期間PV', '前日のPV', 'スキ率(%)', '1日で増えたスキ', '7日で増えたスキ']].concat((D.articles || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]]; }));
+    return [['公開日', 'タイトル', 'URL', 'スキ', 'コメント', '全期間PV', '前日のPV', 'スキ率(%)', '1日で増えたスキ', '7日で増えたスキ', 'インプレッション（記録した日の合計）', '読まれた率(%)（同じ日のPV÷インプレッション）', 'インプレッションを記録した日数']]
+      .concat((D.articles || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13]]; }));
   }
   function csvDaily() {
     var R = MINE.data.range;
-    return [['日付', 'PV（日次の合計）', 'スキされた数', 'フォロワー（その日の最後の記録）', 'スキ率(%)']].concat(R.series.map(function (r) { return [r[0], r[1], r[2], r[3], r[4]]; }));
+    return [['日付', 'PV（日次の合計）', 'スキされた数', 'フォロワー（その日の最後の記録）', 'スキ率(%)', 'インプレッション', '読まれた率(%)（PV÷インプレッション）']].concat(R.series.map(function (r) { return [r[0], r[1], r[2], r[3], r[4], r[5], r[6]]; }));
+  }
+  function csvImpArts() {
+    var M = MINE.data.impMap || { quads: {}, held: [] }, q = {};
+    Object.keys(M.quads).forEach(function (k) { (M.quads[k].items || []).forEach(function (r) { q[r[0]] = M.quads[k].label; }); });
+    Object.keys(M.of || {}).forEach(function (key) { var Q = M.quads[M.of[key]]; if (Q) q[key] = Q.label; });   // すべての記事の区分（v1.8.0）
+    (M.held || []).forEach(function (r) { q[r[0]] = '保留（' + HELD_WHY[r[13]] + '）'; });
+    return [['公開日', 'タイトル', 'URL', 'インプレッション', 'PV', '読まれた率(%)', 'スキ', 'スキ率(%)', 'コメント', '売上(円)', '記録した日数', '区分']].concat((MINE.data.impArts || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], q[r[0]] || '']; }));
   }
   function csvFans(F) { return [['順位', 'ニックネーム', 'ID', 'プロフィールURL', 'スキした記事数', 'コメント数', '最初のスキ', '最後のスキ', '最後のコメント', 'はじめて']].concat(F.rows.map(function (r) { return [r[0], r[1], r[2], r[3], r[4], r[10], r[6], r[7], r[11], r[9]]; })); }
   function withFans(fn) {
@@ -1485,8 +1723,9 @@
     var R = MINE.data.range, span = R.from.replace(/-/g, '') + '-' + R.to.replace(/-/g, ''), row = function (title, sub, dl, cp, id) {
       return el('div', { class: 'csvrow' }, [el('div', { class: 'b' }, [title, el('small', { text: sub })]), el('button', { class: 'mini g', type: 'button', 'data-csv': id, onclick: dl }, 'ダウンロード'), el('button', { class: 'mini', type: 'button', 'data-csvcopy': id, onclick: cp }, 'コピー')]);
     };
-    put('csvBtns', [row('記事の数字', '全' + fmt((D.articles || []).length) + '本（スキ・コメント・PV・スキ率）', function () { saveCsv('note_articles.csv', csvArticles()); }, function () { copyCsv(csvArticles()); }, 'articles'),
+    put('csvBtns', [row('記事の数字', '全' + fmt((D.articles || []).length) + '本（スキ・コメント・PV・スキ率' + (artHasImp() ? '・インプレッション' : '') + '）', function () { saveCsv('note_articles.csv', csvArticles()); }, function () { copyCsv(csvArticles()); }, 'articles'),
       row('毎日の合計', md(R.from) + '〜' + md(R.to) + '（' + R.days + '日・記録がない日は空欄）', function () { saveCsv('note_daily_' + span + '.csv', csvDaily()); }, function () { copyCsv(csvDaily()); }, 'daily'),
+      (MINE.data.impArts || []).length ? row('記事ごとの期間の数字', md(R.from) + '〜' + md(R.to) + '（インプレッションを記録した ' + MINE.data.impArts.length + '本）', function () { saveCsv('note_impressions_' + span + '.csv', csvImpArts()); }, function () { copyCsv(csvImpArts()); }, 'imp') : null,
       D.fans ? row('ファンの順位', md(R.from) + '〜' + md(R.to) + 'のスキ・コメント（上位300人まで）', function () { withFans(function (F) { saveCsv('note_fans_' + span + '.csv', csvFans(F)); }); }, function () { withFans(function (F) { copyCsv(csvFans(F)); }); }, 'fans') : null,
       el('div', { class: 'hint', text: 'ファイルはこの端末にだけ保存されます。ファンの一覧は個人の名前を含むので、公開・共有しないでください。' })]);
   }
@@ -1610,8 +1849,8 @@
     var per = function (r) { return [td(r[0]), td(r[1]), td(r[2]), td(r[3]), td(r[4]), el('td', { class: 'n' }, sgn(r[5]))]; };
     put('weekly', tbl(['週', '投稿', 'スキ計', '中央値', 'フォロワー', '増減'], d.weekly, per));
     put('monthly', tbl(['月', '投稿', 'スキ計', '中央値', 'フォロワー', '増減'], d.monthly, per));
-    put('pvTable', d.pv && d.pv.length ? tbl(['PV', 'スキ率', '開封率', '4象限', 'タイトル'], d.pv, function (p) { return [td(p[1]), td(p[3] + '%', 'n'), td(p[5] === '' ? '—' : p[5] + '%', 'n'), td(p[6] || '—'), tlink(p[8], p[9])]; })
-      : el('div', { class: 'hint', text: '「記録」で PV（全期間）を入れると、スキ率（スキ÷PV）・開封率（PV÷インプレッション）・4象限が出ます。' }));
+    put('pvTable', d.pv && d.pv.length ? tbl(['PV', 'スキ率', '読まれた率', '4象限', 'タイトル'], d.pv, function (p) { return [td(p[1]), td(p[3] + '%', 'n'), td(p[5] === '' ? '—' : p[5] + '%', 'n'), td(p[6] || '—'), tlink(p[8], p[9])]; })
+      : el('div', { class: 'hint', text: '「記録」で PV（全期間）を入れると、スキ率（スキ÷PV）・読まれた率（PV÷インプレッション）・4象限が出ます。' }));
     put('decay', (d.pvDecay || []).some(function (r) { return r[1] > 0; }) ? tbl(['公開から', '記事数', '1日あたりPV'], d.pvDecay, function (r) { return [td(r[0]), td(r[1]), td(r[2])]; }) : el('div', { class: 'hint', text: 'まだありません（同じ記事の全期間PVを2回以上記録すると出ます）。' }));
     put('pvKey', (d.pvArticles || []).length ? d.pvArticles.map(function (a) { return el('option', { value: a[0], text: a[1] }); }) : el('option', { value: '', text: '（記事がまだありません）' }));
     put('aiBox', d.ai ? [el('b', { text: mdt(d.ai.at) + '（' + d.ai.model + '）' }), '\n\n' + d.ai.summary + '\n\n', el('b', { text: '気づき' }), '\n' + d.ai.findings + '\n\n', el('b', { text: '次の記事案' }), '\n' + d.ai.ideas + '\n\n', el('b', { text: '来週ためすこと' }), '\n' + d.ai.experiments]

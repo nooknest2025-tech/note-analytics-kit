@@ -38,6 +38,10 @@ def plan_settings(state, env_own="", env_bench=None):
         "dashShareOverride": bool(st.get("dashShareOverride")),
         "shared": bool(((state or {}).get("sharing") or {}).get("shared")),
         "lastDashDate": (state or {}).get("lastDashDate") or "",
+        # インプレッションのさかのぼり（v1.4.0）：シートが v1.8.0 以上（state に impDates がある）ときだけ。古いシートは前日分だけ（今まで通り）
+        "impDates": set(x for x in ((state or {}).get("impDates") or []) if isinstance(x, str)) if "impDates" in (state or {}) else None,
+        "impBackfill": _int(st.get("impBackfill") if st.get("impBackfill") is not None else 30, 30, 0, 120),
+        "impProven": bool((state or {}).get("impProven")),
         "known": {r[0]: {"likes": r[1], "likersAt": r[2] or 0, "hasText": bool(r[3]), "lastLike": r[4] or 0, "publishMs": r[5],
                          "commentersAt": (r[6] if len(r) > 6 else 0) or 0} for r in ((state or {}).get("ownArticles") or []) if r and r[0]},
     }
@@ -97,12 +101,15 @@ def run(http, P, now_ms, log, has_cookie=False, dash_off=False):
         D["state"], D["reason"] = "none", "Cookie（NOTE_SESSION）がないので、PVの自動取得はしませんでした"
     elif not P["dash"]:
         D["state"], D["reason"] = "skipped", "シートの設定「PVの自動取得（自分のCookie）」が「いいえ」です"
-    elif P["lastDashDate"] == today:
-        D["state"], D["reason"] = "skipped", "今日はもう取得しています（1日1回）"
     elif P["shared"] and not P["dashShareOverride"]:
         D["state"], D["reason"] = "skipped", "スプレッドシートが自分以外と共有されているので、Cookie を使う取得はしませんでした"
     elif not P["own"]:
         D["state"], D["reason"] = "skipped", "自分のクリエイターIDがありません"
+    elif P["lastDashDate"] == today:
+        D["state"], D["reason"] = "skipped", "今日はもう取得しています（1日1回）"
+        # 全期間PVは1日1回。インプレッションの記録が抜けている日があれば、その分だけ続きを取る（v1.4.0）
+        if P["dashImp"] and P["impDates"] is not None and imp_plan(P, now_ms):
+            task("インプレッションのさかのぼり", lambda: _gql(http, P, now_ms, out, arts))
     else:
         task("PVの自動取得", lambda: _dash(http, P, now_ms, out, arts, log))
 
@@ -211,38 +218,120 @@ def _dash(http, P, now_ms, out, arts, log):
     D["state"] = "ok"
     if not P["dashImp"]:
         return
+    _gql(http, P, now_ms, out, arts)
+
+
+IMP_REQ_BUDGET = 90        # さかのぼりに使うアクセス回数の上限（1回の実行あたり。あとの取得のぶんを残す）
+IMP_REQ_RESERVE = 120      # 実行全体の上限からこれだけは残す
+
+
+def imp_floor(P, arts):
+    """これより前はインプレッションが無い日：自分の記事でいちばん古い公開日"""
+    ms = [a["publishMs"] for a in arts.values() if a.get("creator") == P["own"] and a.get("publishMs")]
+    ms += [k["publishMs"] for k in P["known"].values() if k.get("publishMs")]
+    return core.jst(min(ms))["date"] if ms else ""
+
+
+def imp_plan(P, now_ms, arts=None):
+    yday = core.jst(now_ms - core.DAY_MS)["date"]
+    if P["impDates"] is None:            # 古いシート：前日分だけ（今まで通り）
+        return [yday]
+    if not P["impBackfill"]:             # さかのぼらない設定：前日分が未記録のときだけ
+        return core.plan_imp_dates(P["impDates"], yday, yday, 1)
+    return core.plan_imp_dates(P["impDates"], yday, imp_floor(P, arts or {}), P["impBackfill"])
+
+
+def _check_bearer(r):
+    if r["state"] == "ok":
+        return
+    if r["state"] == "invalid":
+        raise core.NaError("TOKEN", "新ダッシュボードの一時トークンが受け付けられませんでした：" + r["reason"])
+    if r["state"] == "busy":
+        raise Stop(429, r["reason"] + "。今日の取得は止めます。")
+    raise core.NaError("HTTP", r["reason"])
+
+
+def _gql(http, P, now_ms, out, arts):
+    """新ダッシュボード（GraphQL）：日ごと・記事ごとのインプレッション・PV・スキ・コメント・売上。
+    まだ記録していない日を新しい順に取る（v1.4.0）。1日分がそろったときだけ送る（途中で止まった日は次回に回す）。"""
+    D = out["dash"]
+    D.setdefault("impDays", 0)
+    yday = core.jst(now_ms - core.DAY_MS)["date"]
+    new_sheet = P["impDates"] is not None
+    dates = imp_plan(P, now_ms, arts)
+    if not dates:
+        return
+    start_req = http.requests
+    proven = P["impProven"]
+    minimal = False
     try:
         r = http.gql_auth()
-        check(r, "cookie")
+        if r["state"] == "invalid":
+            D["state"], D["reason"] = "invalid", r["reason"]
+            raise core.NaError("COOKIE_INVALID", "Cookie が使えなくなりました：" + r["reason"])
+        _check_bearer(r)
         if not http.token:
             raise core.NaError("GQL", "新ダッシュボード用の一時トークンが返されませんでした（noteの仕様が変わった可能性があります）。インプレッションは取得できません。")
-        after, minimal = None, False
-        for page in range(1, min(10, P["dashPages"]) + 1):
-            r = http.gql(core.gql_body(yday, after, minimal))
-            check(r, "bearer")
-            try:
-                Q = core.parse_gql(json.loads(r["body"]))
-            except core.NaError as e:
-                if e.code == "GQL" and not minimal:
-                    minimal = True
-                    D["notes"].append("新ダッシュボード：スキ・コメント・売上の項目が使えなかったので、PV・インプレッションだけ取得します")
-                    r = http.gql(core.gql_body(yday, after, True))
-                    check(r, "bearer")
-                    Q = core.parse_gql(json.loads(r["body"]))
-                else:
-                    raise
-            except ValueError:
-                raise core.NaError("PARSE", "新ダッシュボードの応答が JSON ではありませんでした。")
-            if page == 1 and Q["suspectAnonymous"]:
-                D["notes"].append("新ダッシュボード：数字がすべて0でした（ログインが通っていない可能性）。記録しませんでした")
-                return
-            for x in Q["items"]:
-                a = arts.get(x["key"])
-                out["pv"].append({"date": yday, "period": "日次", "key": x["key"], "title": a["title"] if a else "", "pv": x["pv"], "imp": x["imp"], "likes": x["likes"], "comments": x["comments"], "sales": x["sales"], "method": core.METHOD_GQL})
-                D["dailyRows"] += 1
-            if not Q["hasNext"]:
+        pending, skipped_busy = [], []
+        for di, date in enumerate(dates):
+            used = http.requests - start_req
+            if di > 0 and (used >= IMP_REQ_BUDGET or http.requests >= http.max_requests - IMP_REQ_RESERVE):
+                D["notes"].append(f"インプレッション：のこり {len(dates) - di} 日分は次回に取ります（1回のアクセス回数を抑えるため）")
                 break
-            after = Q["endCursor"]
+            rows, after, total, ok = [], None, None, True
+            for page in range(1, 11):
+                r = http.gql(core.gql_body(date, after, minimal))
+                _check_bearer(r)
+                try:
+                    Q = core.parse_gql(json.loads(r["body"]))
+                except core.NaError as e:
+                    if e.code == "GQL" and not minimal:
+                        minimal = True
+                        D["notes"].append("新ダッシュボード：スキ・コメント・売上の項目が使えなかったので、PV・インプレッションだけ取得します")
+                        r = http.gql(core.gql_body(date, after, True))
+                        _check_bearer(r)
+                        Q = core.parse_gql(json.loads(r["body"]))
+                    else:
+                        raise
+                except ValueError:
+                    raise core.NaError("PARSE", "新ダッシュボードの応答が JSON ではありませんでした。")
+                if page == 1:
+                    if new_sheet:
+                        ready = core.day_ready(Q["lastUpdatedAt"], date)
+                        if ready is False:
+                            skipped_busy.append(date)
+                            ok = False
+                            break
+                    if Q["suspectAnonymous"]:
+                        if not proven:
+                            D["notes"].append("新ダッシュボード：数字がすべて0でした（ログインが通っていない可能性）。記録しませんでした")
+                            return
+                    else:
+                        proven = True
+                    total = Q["summary"] if Q.get("hasSummary") else None
+                for x in Q["items"]:
+                    a = arts.get(x["key"])
+                    rows.append({"date": date, "period": "日次", "key": x["key"], "title": a["title"] if a else "", "pv": x["pv"], "imp": x["imp"], "likes": x["likes"], "comments": x["comments"], "sales": x["sales"], "method": core.METHOD_GQL})
+                if not Q["hasNext"]:
+                    break
+                after = Q["endCursor"]
+                if page == 10 or (not new_sheet and page >= min(10, P["dashPages"])):
+                    D["notes"].append(f"新ダッシュボード {date}：最大ページ数で止めました")
+                    break
+            if not ok:
+                continue
+            out["pv"].extend(rows)
+            D["dailyRows"] += len(rows)
+            if new_sheet:
+                t = total or {}
+                out["pv"].append({"date": date, "period": "日次合計", "key": "", "title": "", "pv": t.get("pv", ""), "imp": t.get("imp", ""), "likes": t.get("likes", ""),
+                                  "comments": t.get("comments", ""), "sales": t.get("sales", ""), "method": core.METHOD_GQL, "articles": len(rows)})
+                D["impDays"] += 1
+                pending.append(date)
+        if skipped_busy:
+            D["notes"].append("インプレッション：" + "・".join(skipped_busy) + " はまだ note 側で集計中だったので、次回に取ります")
+        if pending and (len(pending) > 1 or pending[0] != yday):
+            D["notes"].append(f"インプレッション：{len(pending)} 日分を記録（{min(pending)}〜{max(pending)}）")
     finally:
         http.token = None   # 一時トークンはすぐ捨てる
 
