@@ -228,7 +228,7 @@ function naCallOtherAi_(provider, prompt, st) {
 }
 
 /* ===== note分析シート：共通ロジック（Apps Script とテストで共用。GAS の API は使わない） ===== */
-var NA_VERSION = '1.8.0';
+var NA_VERSION = '1.8.1';
 var NA_API = 'https://note.com/api';
 var NA_PAGE_SIZE = 6;            // 一覧 API は 1 ページ 6 件（2026-10 時点で確認）
 var NA_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -1200,27 +1200,37 @@ function naTrend(pvDays, likeDays, now, days) {
 // 記事タブの一覧：[キー, タイトル, 公開日, URL, スキ, コメント, 全期間PV, 昨日のPV, スキ率(%), スキ+1日, スキ+7日]（新しい順）
 function naArticleRows(articles, pvd, g1, g7, imp) {
   var tot = (pvd && pvd.totalByKey) || {}, yd = (pvd && pvd.lastByKey) || {}, nz = function (v) { return v === undefined ? null : v; }, ib = (imp && imp.byKey) || {};
+  var cf = (imp && imp.contFrom) || '', ct = (imp && imp.covTo) || '';
   return articles.slice().sort(function (a, b) { return b.publishMs - a.publishMs; }).map(function (a) {
     var p = nz(tot[a.key]), rate = (p > 0 && a.likes !== null && a.likes !== undefined) ? Math.round(a.likes / p * 1000) / 10 : null, m = ib[a.key];
     // [11] インプレッション（記録した日の合計）・[12] 読まれた率（同じ日の PV÷インプレッション）・[13] 記録した日数（v1.8.0）
+    // [14][15] 公開日から covTo までの日ごとの記録がすべてそろっているときだけ：公開からのインプレッション・PV（そろっていなければ null）・[16] スキ・コメントを取った日時（v1.8.1）
+    var full = !!(cf && a.date && a.date >= cf && a.date <= ct);
     return [a.key, a.title, a.date, a.url, nz(a.likes), nz(a.comments), p, nz(yd[a.key]), rate, nz((g1 || {})[a.key]), nz((g7 || {})[a.key]),
-      m ? m.imp : null, m && m.imp > 0 ? Math.round(m.pv / m.imp * 1000) / 10 : null, m ? m.days : null];
+      m ? m.imp : null, m && m.imp > 0 ? Math.round(m.pv / m.imp * 1000) / 10 : null, m ? m.days : null,
+      full ? (m ? m.imp : 0) : null, full ? (m ? m.pv : 0) : null, naStampOf(a.lastSeen)];
   });
 }
 /* 記事ごとのインプレッション（v1.8.0）：「PV入力」の日次でインプレッションの欄に数字がある行だけ。同じ日・同じ記事は最後の行。keys: {key: true} */
 function naImpByKey(pv, keys) {
-  var day = {}, byKey = {}, days = {};
+  var day = {}, byKey = {}, days = {}, cov = {}, blank = function (v) { return v === '' || v === null || v === undefined; };
   pv.forEach(function (p) {
-    if (!p || p.period !== '日次' || !p.key || (keys && !keys[p.key]) || p.imp === '' || p.imp === null || p.imp === undefined || !isFinite(p.t)) return;
-    var d = naJst(p.t).date; (day[d] = day[d] || {})[p.key] = p;
+    if (!p || !isFinite(p.t) || blank(p.imp)) return;
+    if (p.period === '日次合計') { cov[naJst(p.t).date] = true; return; }   // アカウント全体の数字がある日＝その日は確認ずみ（v1.8.1）
+    if (p.period !== '日次' || !p.key || (keys && !keys[p.key])) return;
+    var d = naJst(p.t).date; (day[d] = day[d] || {})[p.key] = p; cov[d] = true;
   });
   Object.keys(day).forEach(function (d) {
     days[d] = true;
     for (var k in day[d]) { var p = day[d][k], b = byKey[k] = byKey[k] || { imp: 0, pv: 0, days: 0 }; b.imp += naNum(p.imp); b.pv += naNum(p.pv); b.days++; }
   });
-  var ds = Object.keys(days).sort();
-  return { byKey: byKey, from: ds[0] || '', to: ds[ds.length - 1] || '', days: ds.length, articles: Object.keys(byKey).length };
+  var ds = Object.keys(days).sort(), cs = Object.keys(cov).sort(), covTo = cs[cs.length - 1] || '', contFrom = covTo;
+  // contFrom：covTo からさかのぼって、1日も欠けずに記録がある最初の日（この日以降に公開した記事は「公開からの合計」が出せる）
+  while (contFrom && cov[nmAdd_(contFrom, -1)]) contFrom = nmAdd_(contFrom, -1);
+  return { byKey: byKey, from: ds[0] || '', to: ds[ds.length - 1] || '', days: ds.length, articles: Object.keys(byKey).length, covTo: covTo, contFrom: contFrom };
 }
+/* スキ・コメントを取った日時（「記事」シートの「最終取得」）を「YYYY-MM-DD HH:MM」（日本時間）に。読めなければ '' */
+function naStampOf(v) { var t = naParseTime(v); return isFinite(t) && t > 0 ? naJst(t).stamp : ''; }
 // いま伸びている記事：昨日のPV → 1日で増えたスキ → 7日で増えたスキ の順。どれも0の記事は出さない
 function naTopGrowing(rows, n) {
   var v = function (x) { return typeof x === 'number' ? x : -1; };
@@ -2497,7 +2507,8 @@ function naGetDashboard() {
       followers: { value: fLast ? fLast[1] : (h.length ? h[h.length - 1].followers : null), date: fLast ? fLast[0] : '', prev: fPrev ? fPrev[1] : null, prevDate: fPrev ? fPrev[0] : '' },
       trend: naTrend(pvd.days, naDailyLikeGains(snaps, mine, now, 30), now, 30), top5: naTopGrowing(arts, 5), newFans: null, unrepliedCount: null, unreplied: [], weekFans: [], weekFansCount: 0, hasComments: false };
     out.articles = arts.slice(0, 500); out.articleCount = arts.length;
-    out.impInfo = { from: impK.from, to: impK.to, days: impK.days, articles: impK.articles };   // v1.8.0：記事タブの「インプレッションは◯/◯〜◯/◯の◯日分」
+    out.impInfo = { from: impK.from, to: impK.to, days: impK.days, articles: impK.articles, covTo: impK.covTo, contFrom: impK.contFrom,
+      pvOld: pv.some(function (p) { return p.period === '全期間' && p.creator === st.target && /stats\/pv/.test(p.method || ''); }) };   // 全期間の数が note の旧い集計（stats/pv）か（v1.8.1）   // v1.8.0：記事タブの「インプレッションは◯/◯〜◯/◯の◯日分」
     // 運用（v1.4.0）：予定帳・おすすめの枠・タイトルの型
     out.slots = naBestSlots(r); out.slots.next = naNextSlot(now, out.slots.wd, out.slots.hourStart); out.titleWins = naTitleWinners(r.titlePatterns);
     out.weekday = r.weekday.map(function (x) { return [x[0], x[1], x[2]]; }); out.hour = r.hour.map(function (x) { return [x[0], x[1], x[2]]; });
@@ -3834,6 +3845,9 @@ function naMineRange(X, from, to) {
     rate: cur.rate.pct !== null && prev.rate.pct !== null ? { diff: nmR1_(cur.rate.pct - prev.rate.pct) } : null,
     imp: nmCmp_(cur.imp.sum, prev.imp.sum, cur.imp.days, prev.imp.days),
     ctr: cur.imp.ctr !== null && prev.imp.ctr !== null ? { diff: nmR1_(cur.imp.ctr - prev.imp.ctr) } : null };
+  // 記録が欠けている日（v1.8.1）：この期間のうち、最後に記録した日（impTo）までで、インプレッションの数字がない日。記事ごとの「この期間」の合計がどの日を含まないかを出すため
+  var impMissing = [], impEnd = X.impTo && X.impTo < to ? X.impTo : to;
+  if (X.impTo) for (var md = from; md <= impEnd; md = nmAdd_(md, 1)) if (!X.impDay[md]) impMissing.push(md);
   var notes = [];
   var pvFrom = X.pvDays[0] || '', folFrom = X.fol.length ? X.fol[0][0] : '';
   if (!pvFrom) notes.push('PVの記録はまだありません（「PVの自動取得」をオンにするか、「記録」で貼り付けると出ます）。');
@@ -3842,11 +3856,14 @@ function naMineRange(X, from, to) {
   else if (folFrom > from) notes.push('フォロワー数の記録は ' + nmMd_(folFrom) + ' からです（さかのぼっては取れません）。');
   if (!X.impFrom) notes.push(X.impChecked.length ? 'インプレッションは、note に問い合わせた ' + X.impChecked.length + '日分すべてで数字がありませんでした（note がまだ出していない可能性があります）。' : 'インプレッションの記録はまだありません（PVの自動取得で「インプレッション等も取る」を「はい」にすると、毎日の分と過去の分を少しずつ記録します）。');
   else if (cur.imp.days < days) notes.push('インプレッションの記録があるのは、この期間のうち ' + cur.imp.days + '日分' + (cur.imp.days ? '（' + nmMd_(cur.imp.first) + '〜' + nmMd_(cur.imp.last) + '）' : '') + 'です。記録は ' + nmMdY_(X.impFrom) + '〜' + nmMdY_(X.impTo) + ' の ' + X.impDays.length + '日分（過去の日も少しずつさかのぼって取ります）。');
+  // v1.8.1：日ごとの記事の数字はあるのに「日次合計」が1行もない＝過去の日のさかのぼりがまだ始まっていない（GitHub の受け取り用デプロイが古いと起きる）
+  if (X.impDays.length && !X.impChecked.length) notes.push('インプレッションの過去の日のさかのぼりは、まだ始まっていません（「PV入力」に「日次合計」の行がありません）。GitHub / Colab で取得している場合は、受け取り用のデプロイを新しい版にすると、次の取得から始まります。');
   if (X.hasLikers) notes.push('スキは「スキした人」の記録（スキした日）から数えています。さかのぼって取れた分も入ります' + (X.likeCompleteness !== null ? '（記録できたのは今のスキ数の ' + X.likeCompleteness + '%）' : '') + '。');
   else notes.push('スキの日ごとの数は「誰からのスキを記録」を「はい」にすると出ます。');
   return { from: from, to: to, days: days, prevFrom: prevFrom, prevTo: prevTo, series: series, cur: cur, prev: prev, cmp: cmp, notes: notes,
     cover: { pvFrom: pvFrom, pvTo: X.pvDays[X.pvDays.length - 1] || '', folFrom: folFrom, folTo: X.fol.length ? X.fol[X.fol.length - 1][0] : '', likeFrom: X.likeFrom, likeRecFrom: X.likeRecFrom, likeCompleteness: X.likeCompleteness,
-      impFrom: X.impFrom, impTo: X.impTo, impDays: X.impDays.length, impFirstPos: X.impFirstPos, impChecked: X.impChecked.length, impNullDays: X.impNullDays } };
+      impFrom: X.impFrom, impTo: X.impTo, impDays: X.impDays.length, impFirstPos: X.impFirstPos, impChecked: X.impChecked.length, impNullDays: X.impNullDays,
+      impMissing: impMissing, impPending: X.impTo && to > X.impTo ? [nmAdd_(X.impTo, 1) > from ? nmAdd_(X.impTo, 1) : from, to] : null } };
 }
 function nmMdY_(d) { return d ? d.slice(0, 4) + '/' + (+d.slice(5, 7)) + '/' + (+d.slice(8, 10)) : ''; }
 
@@ -3958,6 +3975,13 @@ function naImpArticles(X, from, to) {
       b.nc ? null : b.comments, b.ns ? null : b.sales, b.days, Math.floor((X.now - a.publishMs) / NA_DAY_MS)];
   }).sort(function (x, y) { return y[4] - x[4] || y[5] - x[5]; });
 }
+/* 期間内に公開した記事で、公開日〜最後に記録した日のどこかにインプレッションの記録がない日があるか（v1.8.1） */
+function nmImpGap_(X, pub, from, to) {
+  if (!pub || pub < from || !X.impTo) return false;
+  var end = to < X.impTo ? to : X.impTo;
+  for (var d = pub; d <= end; d = nmAdd_(d, 1)) if (!X.impDay[d]) return true;
+  return false;
+}
 var NM_QUADS = {
   hit: { label: '表示も多く、よく読まれた', action: 'この記事のテーマ・タイトルの型で、次の1本を書く' },
   title: { label: '表示は多いが、開かれにくい', action: 'タイトルと見出し画像を見直す（一覧で目にとまる言葉に）' },
@@ -3967,11 +3991,12 @@ var NM_QUADS = {
 function naImpMap(X, from, to, rows) {
   rows = rows || naImpArticles(X, from, to);
   var res = { from: from, to: to, minImp: NM_IMP_MIN, minN: NM_IMP_MIN_N, n: 0, total: rows.length, medImp: null, medCtr: null, medLike: null, nLike: 0, strict: false,
-    quads: {}, of: {}, held: [], heldWhy: { low: 0, young: 0, noPv: 0, few: 0 }, review: { title: [], body: [], reach: [] }, reason: '' };
+    quads: {}, of: {}, held: [], heldWhy: { low: 0, young: 0, gap: 0, noPv: 0, few: 0 }, review: { title: [], body: [], reach: [] }, reason: '' };
   Object.keys(NM_QUADS).forEach(function (q) { res.quads[q] = { label: NM_QUADS[q].label, action: NM_QUADS[q].action, n: 0, rep: null, items: [] }; });
   var ok = [];
   rows.forEach(function (r) {
     if (r[12] < NM_IMP_YOUNG_DAYS) { res.held.push(r.concat(['young'])); res.heldWhy.young++; }
+    else if (nmImpGap_(X, r[2], from, to)) { res.held.push(r.concat(['gap'])); res.heldWhy.gap++; }   // v1.8.1：期間内に公開した記事で、公開日からの記録が欠けている（公開直後のいちばん多い日が入っていない）
     else if (r[4] < NM_IMP_MIN) { res.held.push(r.concat(['low'])); res.heldWhy.low++; }
     else if (r[6] === null) { res.held.push(r.concat(['noPv'])); res.heldWhy.noPv++; }
     else ok.push(r);
@@ -3979,7 +4004,7 @@ function naImpMap(X, from, to, rows) {
   res.n = ok.length;
   if (ok.length < NM_IMP_MIN_N) {
     ok.forEach(function (r) { res.held.push(r.concat(['few'])); }); res.heldWhy.few = ok.length;
-    res.reason = rows.length ? 'くらべられる記事（インプレッション ' + NM_IMP_MIN + ' 以上・公開' + NM_IMP_YOUNG_DAYS + '日以上）が ' + ok.length + '本なので、まだ分けません（' + NM_IMP_MIN_N + '本から）。' : 'この期間の記事ごとのインプレッションの記録がありません。';
+    res.reason = rows.length ? 'くらべられる記事（インプレッション ' + NM_IMP_MIN + ' 以上・公開' + NM_IMP_YOUNG_DAYS + '日以上）が ' + ok.length + '本なので、まだ分けません（' + NM_IMP_MIN_N + '本から）。' + (res.heldWhy.gap ? '期間内に公開した ' + res.heldWhy.gap + '本は、公開日からのインプレッションの記録がそろっていないので保留にしています（過去の日のさかのぼりが進むと入ります）。' : '') : 'この期間の記事ごとのインプレッションの記録がありません。';
     res.held = res.held.slice(0, 200); return res;
   }
   res.medImp = nmMed_(ok.map(function (r) { return r[4]; })); res.medCtr = nmR1_(nmMed_(ok.map(function (r) { return r[6]; })));
@@ -4053,7 +4078,7 @@ function naWeeklyReview(X, curves) {
   // 次の一手（ルール。多くて3つ）
   var nx = res.next, t = function (s) { return String(s).slice(0, 28); };
   if (weak) nx.push(['weak', '「' + t(weak.a.title) + '」の冒頭とタイトルを見直す', '公開' + weak.pt + '日目までのスキが ' + weak.at + '（ふだんの真ん中は ' + weak.m + '）。最初の3行で「読むと何が得られるか」を伝えると変わるかも。', 'mine']);
-  if (best) nx.push(['best', '「' + t(best.a.title) + '」の続き・関連の記事を予定帳へ', 'この7日でいちばん' + (byPv ? '読まれた（' + best.v + ' PV）' : 'スキが増えた（+' + best.v + '）') + '記事です。同じテーマの次の1本は読まれやすいです。', 'plan']);
+  if (best) nx.push(['best', '「' + t(best.a.title) + '」の続き・関連の記事を予定帳へ', 'この7日でいちばん' + (byPv ? '読まれた（' + best.v + ' PV' + (cur.pv.days < 7 ? '・' + cur.pv.days + '日分の記録' : '') + '）' : 'スキが増えた（+' + best.v + '）') + '記事です。同じテーマの次の1本は読まれやすいです。', 'plan']);
   if (!posts.length) nx.push(['post', 'この7日は投稿がありません', 'まずは次の1本の日にちを予定帳に入れておきましょう。', 'plan']);
   if (fans.length) nx.push(['fans', '新しく来てくれた ' + fans.length + '人の記事を読みに行く', fans.slice(0, 3).map(function (f) { return f[0]; }).join('・') + (fans.length > 3 ? ' ほか' : '') + '。お礼のきっかけに。', 'fan']);
   if (pvCmp && pvCmp.pct !== null && pvCmp.pct <= -20) nx.push(['pv', 'PVが前の7日より ' + Math.abs(pvCmp.pct) + '%少なめ', '人気だった記事を、新しい記事の中で紹介すると、また読まれるきっかけになります。', 'art']);
@@ -4145,6 +4170,8 @@ function naWebMine(from, to, withAll) {
     if (!st.own && !st.target) return { ok: false, message: '「設定」で自分のクリエイターIDを入れると使えます。' };
     var X = naMineData_(st), r = naMineRange(X, from, to);
     var out = { ok: true, id: st.own || st.target, range: r, opp: naOpportunity(X, r.from, r.to), triggers: naFollowerTriggers(X, r.from, r.to), articles: X.arts.length };
+    // v1.8.1：記事ごとの「この期間のスキ」をスキした人の記録（スキした日）からも（分析の数字と同じ出どころ。くらべる表で使う）
+    if (X.hasLikers) { out.likesIn = {}; Object.keys(X.likeByKey).forEach(function (k) { var n = X.likeByKey[k].filter(function (d) { return d >= r.from && d <= r.to; }).length; if (n) out.likesIn[k] = n; }); }
     try { var ia = naImpArticles(X, r.from, r.to); out.impArts = ia.slice(0, 300); out.impMap = naImpMap(X, r.from, r.to, ia); }
     catch (e) { out.impError = 'インプレッションの集計でエラーが出たので、この部分だけ出していません（' + e.message + '）。'; }   // ほかの分析は出す
     if (withAll) { out.curves = naGrowthCurves(X); out.works = naWhatWorks(X); }

@@ -339,6 +339,7 @@
   .cmpt th:first-child, .cmpt td:first-child { text-align: left; width: 38%; color: var(--sub); font-weight: 700; font-size: 12px; } .cmpt tr.grp td { background: #F6F8F7; color: var(--text); font-weight: 800; text-align: left; font-size: 12px; }
   .cmpt td.hi { font-weight: 800; color: var(--gd); } .cmpt thead th { border-top: 0; font-size: 12px; color: var(--text); text-align: right; } .cmpt thead th a { color: inherit; }
   .stats.s6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .arow .life { font-size: 11.5px; color: var(--sub); margin-top: 6px; line-height: 1.5; }
   .stats div.low b { color: var(--sub); font-weight: 600; }
   .printbtn { margin-left: 8px; }
   @media print {
@@ -461,7 +462,7 @@
     <div class="card mine-sec" id="oppCard"><h2>見直し候補<small id="oppSub"></small></h2>
       <h3 class="subh" style="border-top:0;padding-top:0;margin-top:0">インプレッションから<small id="impRvSub" style="font-weight:500;color:var(--sub);font-size:12px"></small></h3>
       <div class="rv3" id="impReview"></div>
-      <h3 class="subh">PVとスキ率から（真ん中の値で分けた図）</h3>
+      <h3 class="subh" id="oppSubh">PVとスキ率から（真ん中の値で分けた図）</h3>
       <div class="chart" id="oppChart"></div><div class="hint" id="oppHint" style="margin:6px 0 10px"></div>
       <div class="grid2" style="margin-bottom:0">
         <div><h3 style="font-size:14px;margin:4px 0 6px">読まれたのに反応が少ない<br><small style="font-weight:500;color:var(--sub)">冒頭・中身を見直す候補</small></h3><div class="list" id="oppLowReact"></div></div>
@@ -814,6 +815,10 @@
   var DEF = {
     pv: ['PV（ページビュー）', '記事が開かれた回数。同じ人が2回開くと2回と数えます（note のダッシュボードの数字）。'],
     pvTotal: ['全期間のPV', '記事ごとの、公開からこれまでのPVの合計（最後に記録した日の時点）。'],
+    pvOld: ['ビュー（旧集計）', 'note の旧い集計（stats/pv）の、公開からの数。2026年9月からの新しい「ページビュー」とは数え方がちがい、多く出ることがあります（note の記事一覧の数字とは合いません）。'],
+    life: ['公開からの合計', 'インプレッション・PVは、公開日から最後に記録した日までの、日ごとの記録の合計（1日でも欠けていれば出しません）。note の記事一覧は今日の分も入るので、その分だけ多くなります。スキ・コメントは、書いてある日時に取った数（note の記事一覧と同じ数え方）。'],
+    likesBy: ['スキ（スキした日で数える）', '「スキした人」の記録で、この期間にスキされた数（分析タブの「スキされた数」と同じ数え方。自分のスキは除く）。上の「スキ」は、インプレッションと同じ日（数字があった日）だけの合計です。'],
+    missing: ['記録がない日', 'この期間のうち、インプレッションの記録がまだない日（公開日より前は数えません）。過去の日は毎朝の取得で少しずつさかのぼって記録します。'],
     imp: ['インプレッション', '記事が一覧・おすすめ・検索結果などに表示された回数（note のダッシュボードの数字）。'],
     ctr: ['読まれた率', '表示（インプレッション）のうち、開いて読まれた割合＝PV÷インプレッション。検索やSNSなど外からのPVも入るので、100%をこえることがあります。'],
     likes: ['スキ', 'スキされた数（自分のスキは数えません）。'],
@@ -835,7 +840,7 @@
     quad: ['4区分', 'この期間のインプレッションと読まれた率を、自分の記事の真ん中の値（中央値）で分けた図。くらべられる記事が6本以上のときに出ます。'],
     cmp: ['前の期間とくらべて', 'すぐ前の同じ日数の期間との差。記録した日数がちがうときは「1日あたり」でくらべます。']
   };
-  var HELP_RE = [[/読まれた率/, 'ctr'], [/インプレッション/, 'imp'], [/スキ率/, 'rate'], [/全期間のPV/, 'pvTotal'], [/PV/, 'pv'], [/スキされた数/, 'likes'], [/フォロワー/, 'fol'], [/新しいファン/, 'newFans'], [/未返信/, 'unreplied'],
+  var HELP_RE = [[/ビュー（旧/, 'pvOld'], [/読まれた率/, 'ctr'], [/インプレッション/, 'imp'], [/スキ率/, 'rate'], [/全期間のPV/, 'pvTotal'], [/PV/, 'pv'], [/スキされた数/, 'likes'], [/フォロワー/, 'fol'], [/新しいファン/, 'newFans'], [/未返信/, 'unreplied'],
     [/スキしてくれた人/, 'likers'], [/コメントしてくれた人/, 'commenters'], [/前回から新しく/, 'newPeople'], [/今週はじめて/, 'weekNew']];
   function helpKey(label) { var t = String(label || ''); for (var i = 0; i < HELP_RE.length; i++) if (HELP_RE[i][0].test(t)) return HELP_RE[i][1]; return ''; }
   function hq(key) { var d = DEF[key]; return d ? el('button', { class: 'hq', type: 'button', 'data-help': key, 'aria-label': '「' + d[0] + '」の説明', 'aria-expanded': 'false' }, '?') : null; }
@@ -865,7 +870,7 @@
     var h = d.home || {}, f = d.fans, py = h.pvYday || {}, pt = h.pvTotal || {}, fw = h.followers || {}, lg = d.lastLog, st = lg ? logState(lg.result) : 'wait';
     put('kpis', [
       kpi(py.date ? mdw(py.date) + 'のPV' : '昨日のPV', fmt(py.value), '', isNum(py.value) ? [isNum(py.prev) ? delta(py.value - py.prev) : null, isNum(py.prev) ? (py.prevDate ? md(py.prevDate) + 'より' : '') : '前の日の記録はまだ'] : ['日次のPVがまだありません'], 'hero'),
-      kpi('全期間のPV', fmt(pt.value), '', isNum(pt.value) ? ['PVが取れた' + fmt(pt.articles) + '記事の合計' + (pt.date ? '・' + md(pt.date) + '時点' : '')] : ['PVを記録すると出ます']),
+      kpi(pvOld() ? 'ビュー（旧集計・全期間）' : '全期間のPV', fmt(pt.value), '', isNum(pt.value) ? [(pvOld() ? '取れた' : 'PVが取れた') + fmt(pt.articles) + '記事の合計' + (pt.date ? '・' + md(pt.date) + '時点' : '')] : ['PVを記録すると出ます']),
       kpi('フォロワー', fmt(fw.value), '人', isNum(fw.value) ? [isNum(fw.prev) ? delta(fw.value - fw.prev) : null, isNum(fw.prev) ? (fw.prevDate ? md(fw.prevDate) + 'より' : '') : '前の記録はまだ'] : ['まだ記録がありません']),
       kpi('新しいファン', f ? fmt(h.newFans) : '—', f ? '人' : '', f ? ['前回の取得から', h.weekFansCount ? chip('今週 ' + h.weekFansCount + '人', 'g') : null] : ['「誰からのスキ」を記録すると出ます']),
       kpi('未返信のコメント', f && h.hasComments ? fmt(h.unrepliedCount) : '—', f && h.hasComments ? '件' : '', f && h.hasComments ? [h.unrepliedCount ? '記録した時点' : chip('ぜんぶ返信済み', 'ok')] : ['「コメントした人」を記録すると出ます'], f && h.unrepliedCount ? 'alert' : ''),
@@ -994,12 +999,22 @@
   var SORT_COL = { date: 2, pv: 6, yday: 7, likes: 4, rate: 8, comments: 5, g7: 10, imp: 11, ctr: 12 };
   var ART_MIN_IMP = 100;   // 読まれた率を出す最低の表示回数（記録した日の合計）。たまたまの差が大きいため
   function artHasImp() { return !!(D && D.impInfo && D.impInfo.days); }
+  // v1.8.1：「全期間」の数が note の旧い集計（stats/pv）のときは「ビュー（旧集計）」と書く（note の記事一覧の「ページビュー」とは数え方がちがうため）
+  function pvOld() { return !!(D && D.impInfo && D.impInfo.pvOld); }
+  function pvOldLabel(t, k) { return k === 'pv' && pvOld() ? String(t).replace('PV', 'ビュー（旧）') : t; }
+  function stampMd(s) { var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(String(s || '')); return m ? (+m[2]) + '/' + (+m[3]) + ' ' + m[4] : ''; }
+  // 記事の「公開からの合計」（note の記事一覧とくらべる用）の1行
+  function lifeLine(r) {
+    var II = (D && D.impInfo) || {}, at = stampMd(r[16]), kc = 'スキ ' + fmt(r[4]) + '・コメント ' + fmt(r[5]) + (at ? '（' + at + ' 時点）' : '');
+    if (isNum(r[14])) return '公開からの合計：表示 ' + fmt(r[14]) + '・PV ' + fmt(r[15]) + '（' + md(r[2]) + '〜' + md(II.covTo) + 'の記録）／' + kc;
+    return '公開からの合計：' + kc + '。表示・PVは公開日（' + md(r[2]) + '）からの記録がそろっていないので出していません' + (II.contFrom ? '（そろっているのは ' + md(II.contFrom) + '〜' + md(II.covTo) + '）' : '');
+  }
   function artCtr(r) { return isNum(r[11]) && r[11] >= ART_MIN_IMP && isNum(r[12]) ? r[12] : null; }
   function renderArtSort() {
     if (!artHasImp() && (ART.sort === 'imp' || ART.sort === 'ctr')) ART.sort = 'date';
     put('artSort', SORTS.filter(function (s) { return artHasImp() || (s[0] !== 'imp' && s[0] !== 'ctr'); }).map(function (s) {
       var on = ART.sort === s[0];
-      return el('button', { type: 'button', class: on ? 'on' : null, 'data-sort': s[0], 'aria-pressed': on ? 'true' : 'false', title: on ? 'もう一度押すと逆の順' : null, onclick: function () { if (ART.sort === s[0]) ART.asc = !ART.asc; else { ART.sort = s[0]; ART.asc = false; } ART.limit = 60; renderArtSort(); renderArticles(); } }, on && ART.asc ? s[2] : s[1]);
+      return el('button', { type: 'button', class: on ? 'on' : null, 'data-sort': s[0], 'aria-pressed': on ? 'true' : 'false', title: on ? 'もう一度押すと逆の順' : null, onclick: function () { if (ART.sort === s[0]) ART.asc = !ART.asc; else { ART.sort = s[0]; ART.asc = false; } ART.limit = 60; renderArtSort(); renderArticles(); } }, pvOldLabel(on && ART.asc ? s[2] : s[1], s[0]));
     }));
   }
   function renderArticles() {
@@ -1013,17 +1028,18 @@
     });
     $('artCount').textContent = list.length + '本' + (q ? '（「' + ART.q.trim() + '」で絞り込み）' : '') + ((D && D.articleCount > rows.length) ? '・新しい ' + rows.length + '本まで' : '');
     var imp = artHasImp(), II = (D && D.impInfo) || {};
-    put('artImpHint', imp ? ['表示＝インプレッション（' + ymdJ(II.from) + '〜' + ymdJ(II.to) + 'の記録 ' + II.days + '日分の合計）', hq('imp'), '　読まれた率＝PV÷表示（表示' + ART_MIN_IMP + '回以上の記事だけ）', hq('ctr'), '　スキ率＝スキ÷PV', hq('rate')] : null);
+    put('artImpHint', imp ? ['表示＝インプレッション（' + ymdJ(II.from) + '〜' + ymdJ(II.to) + 'の記録 ' + II.days + '日分のうち、その記事に数字があった日の合計）', hq('imp'), '　公開からの合計（note の記事一覧と同じ数え方）', hq('life'), pvOld() ? '　ビュー（旧集計）は note の記事一覧の「ページビュー」とは数え方がちがいます' : '', pvOld() ? hq('pvOld') : null, '　読まれた率＝PV÷表示（表示' + ART_MIN_IMP + '回以上の記事だけ）', hq('ctr'), (pvOld() ? '　スキ率＝スキ÷ビュー（旧集計）' : '　スキ率＝スキ÷PV'), hq('rate')] : null);
     put('artList', list.length ? list.slice(0, ART.limit).map(function (r) {
       var hl = function (k) { return ART.sort === k ? 'on' : null; };
       return el('div', { class: 'arow' }, [link(r[1], r[3], 'tt'), el('div', { class: 'dt' }, [el('span', { text: '公開 ' + mdw(r[2]) }), isNum(r[7]) ? chip('昨日 ' + fmt(r[7]) + ' PV', 'g') : null, isNum(r[10]) && r[10] > 0 ? chip('スキ ' + signed(r[10]) + '（7日）', 'new') : null]),
-        el('div', { class: 'stats num' + (imp ? ' s6' : '') }, [el('div', { class: hl('pv') }, [el('b', { text: fmt(r[6]) }), el('span', { text: 'PV' })]), el('div', { class: hl('likes') }, [el('b', { text: fmt(r[4]) }), el('span', { text: 'スキ' })]),
+        el('div', { class: 'stats num' + (imp ? ' s6' : '') }, [el('div', { class: hl('pv') }, [el('b', { text: fmt(r[6]) }), el('span', { text: pvOld() ? 'ビュー（旧集計）' : 'PV' })]), el('div', { class: hl('likes') }, [el('b', { text: fmt(r[4]) }), el('span', { text: 'スキ' })]),
           el('div', { class: hl('comments') }, [el('b', { text: fmt(r[5]) }), el('span', { text: 'コメント' })]), el('div', { class: hl('rate') }, [el('b', { text: isNum(r[8]) ? r[8] + '%' : '—' }), el('span', { text: 'スキ率' })]),
-          imp ? el('div', { class: hl('imp') }, [el('b', { text: fmt(r[11]) }), el('span', { text: '表示' })]) : null,
-          imp ? el('div', { class: (hl('ctr') || '') + (isNum(r[12]) && artCtr(r) === null ? ' low' : ''), title: isNum(r[12]) && artCtr(r) === null ? '表示が' + ART_MIN_IMP + '回未満なので出していません' : null }, [el('b', { text: isNum(artCtr(r)) ? artCtr(r) + '%' : '—' }), el('span', { text: '読まれた率' })]) : null])]);
+          imp ? el('div', { class: hl('imp') }, [el('b', { text: fmt(r[11]) }), el('span', { text: isNum(r[13]) ? '表示（記録' + r[13] + '日）' : '表示' })]) : null,
+          imp ? el('div', { class: (hl('ctr') || '') + (isNum(r[12]) && artCtr(r) === null ? ' low' : ''), title: isNum(r[12]) && artCtr(r) === null ? '表示が' + ART_MIN_IMP + '回未満なので出していません' : null }, [el('b', { text: isNum(artCtr(r)) ? artCtr(r) + '%' : '—' }), el('span', { text: '読まれた率' })]) : null]),
+        imp ? el('div', { class: 'life' }, lifeLine(r)) : null]);
     }) : empty('🔍', q ? '見つかりませんでした' : '記事がまだありません', q ? '別のことばで探してみてください。' : '「今すぐ取得する」で記事一覧を取ってきます。'));
     $('artMore').classList.toggle('hidden', list.length <= ART.limit);
-    $('artMeta').textContent = rows.some(function (r) { return isNum(r[6]); }) ? 'PV・スキ率は「PV入力」の全期間の値から' : 'PVを記録すると、PV・スキ率も並びます';
+    $('artMeta').textContent = rows.some(function (r) { return isNum(r[6]); }) ? (pvOld() ? 'ビュー＝note の旧い集計（全期間）' : 'PV・スキ率は「PV入力」の全期間の値から') : 'PVを記録すると、PV・スキ率も並びます';
   }
   $('artQ').addEventListener('input', function () { ART.q = this.value; ART.limit = 60; renderArticles(); });
   $('artMore').onclick = function () { ART.limit += 60; renderArticles(); };
@@ -1398,7 +1414,7 @@
       box('フォロワー', isNum(fd.diff) ? signed(fd.diff) : '—', [el('span', { text: isNum(fd.diff) ? md(fd.from) + '→' + md(fd.to) : fd.text }), isNum(fd.diff) && isNum(pfd.diff) ? el('span', { text: '前の7日 ' + signed(pfd.diff) }) : null]),
       box('新しいファン', fmt(r.newFans) + '人', [el('span', { text: r.fans.slice(0, 2).map(function (f) { return f[0]; }).join('・') + (r.newFans > 2 ? ' ほか' : '') })])]),
       el('div', { class: 'rvl' }, [el('span', { class: 'k', text: '投稿' }), r.posts + '本']),
-      r.best ? el('div', { class: 'rvl' }, [el('span', { class: 'k', text: 'いちばん' + (r.best[5] === 'pv' ? '読まれた' : 'スキが増えた') }), link(String(r.best[1]).slice(0, 50), r.best[3]), '（' + (r.best[5] === 'pv' ? fmt(r.best[4]) + ' PV' : '+' + fmt(r.best[4]) + ' スキ') + '）']) : null,
+      r.best ? el('div', { class: 'rvl' }, [el('span', { class: 'k', text: 'いちばん' + (r.best[5] === 'pv' ? '読まれた' : 'スキが増えた') }), link(String(r.best[1]).slice(0, 50), r.best[3]), '（' + (r.best[5] === 'pv' ? fmt(r.best[4]) + ' PV' + (c.pv.days < 7 ? '・' + c.pv.days + '日分の記録' : '') : '+' + fmt(r.best[4]) + ' スキ') + '）']) : null,
       r.weak ? el('div', { class: 'rvl' }, [el('span', { class: 'k', text: '伸び悩み' }), link(String(r.weak[1]).slice(0, 50), r.weak[3]), '（公開' + r.weak[6] + '日目までのスキ ' + r.weak[4] + '・ふだんの真ん中 ' + r.weak[5] + '）']) : null,
       r.next.length ? el('div', { class: 'nexts', style: { marginTop: '10px' } }, r.next.map(function (n, i) {
         return el('button', { type: 'button', class: 'nx k-' + n[0], 'data-review': n[0], onclick: function () {
@@ -1525,16 +1541,17 @@
     var rows = (W[MINE.works] || []).filter(function (r) { return r[1] > 0; }), best = -1, bestPv = -1, bestRate = -1;
     rows.forEach(function (r) { if (!r[6] && isNum(r[2]) && r[2] > best) best = r[2]; if (!r[6] && isNum(r[4]) && r[4] > bestPv) bestPv = r[4]; if (!r[6] && isNum(r[5]) && r[5] > bestRate) bestRate = r[5]; });
     var cell = function (v, isBest, suffix) { return el('td', { class: 'n' + (isBest ? ' best' : ''), text: isNum(v) ? fmt(v) + (suffix || '') : '—' }); };
-    put('worksTable', rows.length ? el('table', { class: 'tbl2' }, [el('tr', {}, ['', '本数', 'スキ平均', 'PVあり', 'PV平均', 'スキ率'].map(function (h) { return el('th', { text: h }); })),
+    put('worksTable', rows.length ? el('table', { class: 'tbl2' }, [el('tr', {}, ['', '本数', 'スキ平均', pvOld() ? 'ビューあり' : 'PVあり', pvOld() ? 'ビュー平均（旧集計）' : 'PV平均', 'スキ率'].map(function (h) { return el('th', { text: h }); })),
       rows.map(function (r) { return el('tr', {}, [el('td', { text: r[0] + (r[6] ? '（参考）' : '') }), cell(r[1]), cell(r[2], r[2] === best && !r[6]), cell(r[3]), cell(r[4], r[4] === bestPv && !r[6]), cell(r[5], r[5] === bestRate && !r[6], '%')]); })])
       : el('div', { class: 'hint', text: MINE.works === 'tags' ? '2本以上で使ったタグがまだありません。' : 'まだありません。' }));
     $('worksHint').textContent = '平均は記事の数で割った値です。5本未満は「（参考）」で、色はつけません（たまたまの差が大きいため）。色つき＝5本以上の中でいちばん高いところ。テーマのちがいも混ざるので、「ためしてみる候補」として見てください。';
   }
   function oppItem(r) { return el(safeUrl(r[3]) ? 'a' : 'div', { class: 'item', href: r[3] }, [el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }), el('div', { class: 'mt' }, [el('span', { text: '公開 ' + md(r[2]) }), el('span', { text: fmt(r[4]) + ' PV' }), el('span', { text: '♥ ' + fmt(r[5]) })])]), el('div', { class: 'big num' }, [r[6] + '%', el('small', { text: 'スキ率' })])]); }
   function renderOpp() {
+    $('oppSubh').textContent = (pvOld() ? 'ビュー（旧集計）' : 'PV') + 'とスキ率から（真ん中の値で分けた図）';
     var O = MINE.data.opp;
     $('oppSub').textContent = md(O.from) + '〜' + md(O.to) + 'に公開した記事のうち ' + O.n + '本';
-    $('oppHint').textContent = O.n >= 2 ? 'PVは' + (O.pvDate ? md(O.pvDate) + '時点の' : '') + '全期間PV、スキは今の数。真ん中：PV ' + fmt(O.medPv) + '・スキ率 ' + O.medRate + '%。' + (O.strict ? '下・上から4分の1に入る記事を出しています。' : '8本未満なので、真ん中より下・上で分けています（参考）。') + (O.young ? '公開3日未満の ' + O.young + '本は、まだ数字が動くので入れていません。' : '') + (O.noPv ? 'PVの記録がない ' + O.noPv + '本も入っていません。' : '')
+    $('oppHint').textContent = O.n >= 2 ? (pvOld() ? '横は' + (O.pvDate ? md(O.pvDate) + '時点の' : '') + 'ビュー（note の旧い集計・全期間。note の記事一覧の「ページビュー」とは数え方がちがいます）、スキは今の数。真ん中：ビュー ' : 'PVは' + (O.pvDate ? md(O.pvDate) + '時点の' : '') + '全期間PV、スキは今の数。真ん中：PV ') + fmt(O.medPv) + '・スキ率 ' + O.medRate + '%。' + (O.strict ? '下・上から4分の1に入る記事を出しています。' : '8本未満なので、真ん中より下・上で分けています（参考）。') + (O.young ? '公開3日未満の ' + O.young + '本は、まだ数字が動くので入れていません。' : '') + (O.noPv ? 'PVの記録がない ' + O.noPv + '本も入っていません。' : '')
       : 'この期間に公開した記事で、PVの記録があるものが2本以上になると出ます' + (O.published ? '（公開 ' + O.published + '本・公開3日未満 ' + O.young + '本・PVなし ' + O.noPv + '本）' : '') + '。';
     put('oppLowReact', O.lowReact.length ? O.lowReact.map(oppItem) : el('div', { class: 'hint', text: 'いまは該当する記事はありません。' }));
     put('oppLowRead', O.lowRead.length ? O.lowRead.map(oppItem) : el('div', { class: 'hint', text: 'いまは該当する記事はありません。' }));
@@ -1558,11 +1575,11 @@
     var lr = {}, ld = {}; O.lowReact.forEach(function (p) { lr[p[0]] = 1; }); O.lowRead.forEach(function (p) { ld[p[0]] = 1; });
     var cap = el('div', { class: 'cap' }, [el('span', { class: 'hint', text: '点をタップするとタイトルが出ます' })]), s = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, height: H, role: 'img', 'aria-label': 'PVとスキ率の散らばり' });
     [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(ym * f), y2: y(ym * f), stroke: '#E7EBE9', 'stroke-dasharray': f ? '3 4' : null })); s.appendChild(sv('text', { x: L - 6, y: y(ym * f) + 4, 'font-size': 11, fill: '#8B9592', 'text-anchor': 'end', text: short(ym * f) + '%' })); });
-    [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('text', { x: x(xm * f), y: H - 8, 'font-size': 11, fill: '#8B9592', 'text-anchor': f === 0 ? 'start' : f === 1 ? 'end' : 'middle', text: short(xm * f) + (f === 1 ? ' PV' : '') })); });
+    [0, 0.5, 1].forEach(function (f) { s.appendChild(sv('text', { x: x(xm * f), y: H - 8, 'font-size': 11, fill: '#8B9592', 'text-anchor': f === 0 ? 'start' : f === 1 ? 'end' : 'middle', text: short(xm * f) + (f === 1 ? (pvOld() ? ' ビュー' : ' PV') : '') })); });
     if (isNum(O.medPv)) s.appendChild(sv('line', { x1: x(O.medPv), x2: x(O.medPv), y1: T, y2: H - B, stroke: '#C9D2CF', 'stroke-dasharray': '4 4' }));
     if (isNum(O.medRate)) s.appendChild(sv('line', { x1: L, x2: W - R, y1: y(O.medRate), y2: y(O.medRate), stroke: '#C9D2CF', 'stroke-dasharray': '4 4' }));
     pts.forEach(function (p) { var c = lr[p[0]] ? '#E8890C' : ld[p[0]] ? '#12927F' : '#B8C1BE', dot = sv('circle', { cx: x(p[4]), cy: y(p[6]), r: lr[p[0]] || ld[p[0]] ? 5.5 : 4, fill: c, 'fill-opacity': 0.85 });
-      var pick = function () { put(cap, [el('span', { text: md(p[2]) }), link(String(p[1]).slice(0, 40), p[3]), el('span', { class: 'num', text: fmt(p[4]) + ' PV・スキ率 ' + p[6] + '%' })]); };
+      var pick = function () { put(cap, [el('span', { text: md(p[2]) }), link(String(p[1]).slice(0, 40), p[3]), el('span', { class: 'num', text: fmt(p[4]) + (pvOld() ? ' ビュー（旧）' : ' PV') + '・スキ率 ' + p[6] + '%' })]); };
       dot.addEventListener('click', pick); dot.addEventListener('pointerenter', pick); s.appendChild(dot); });
     add(host, [cap, s, legend([['読まれたのに反応が少ない', '#E8890C'], ['反応はいいのに読まれていない', '#12927F'], ['そのほか', '#B8C1BE']])]);
   }
@@ -1570,7 +1587,7 @@
   function ymdJ(d) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? m[1] + '/' + (+m[2]) + '/' + (+m[3]) : String(d || ''); }
   var QUAD_ORDER = ['reach', 'hit', 'quiet', 'title'];   // 2×2：散布図と同じ向き（右＝表示が多い、上＝読まれた率が高い）
   var QUAD_COLOR = { hit: '#2FB9A2', title: '#E8890C', reach: '#4C8BF5', quiet: '#B8C1BE' };
-  var HELD_WHY = { young: '公開3日未満', low: '表示100回未満', noPv: 'PVの記録なし', few: '本数が足りない' };
+  var HELD_WHY = { young: '公開3日未満', gap: '公開日からの記録がそろっていない', low: '表示100回未満', noPv: 'PVの記録なし', few: '本数が足りない' };
   function pct(v) { return isNum(v) ? v + '%' : '—'; }
   function impLine(r) { return fmt(r[4]) + ' 表示・' + fmt(r[5]) + ' PV・読まれた率 ' + pct(r[6]); }
   function impCover() { var cv = (MINE.data && MINE.data.range && MINE.data.range.cover) || {}; return cv.impFrom ? 'インプレッションの記録：' + ymdJ(cv.impFrom) + '〜' + ymdJ(cv.impTo) + '（' + cv.impDays + '日分）。' : ''; }
@@ -1600,7 +1617,7 @@
         el('details', { class: 'held' }, [el('summary', {}, ['保留 ' + M.held.length + '本（' + why + '）', hq('held')]), el('ul', {}, M.held.slice(0, 30).map(function (r) { return el('li', {}, [link(String(r[1]).slice(0, 40), r[3]), '：' + fmt(r[4]) + ' 表示・' + HELD_WHY[r[13]]]); }))])]);
     }
     $('impMapHint').textContent = (M.medImp !== null ? '真ん中の値（' + M.n + '本）：インプレッション ' + fmt(M.medImp) + '・読まれた率 ' + M.medCtr + '%。' : '') +
-      '区分に入れる条件：この期間のインプレッション ' + M.minImp + ' 以上・公開3日以上・' + M.minN + '本以上。数字は期間の合計（記事ごとに記録した日だけ）。' + impCover() + '「例」は区分の中でいちばん数字が大きい記事です。';
+      '区分に入れる条件：この期間のインプレッション ' + M.minImp + ' 以上・公開3日以上・期間内に公開した記事は公開日からの記録がそろっていること・' + M.minN + '本以上。数字は期間の合計（記事ごとに記録した日だけ）。' + impCover() + '「例」は区分の中でいちばん数字が大きい記事です。';
   }
   // 散布図：横＝インプレッション（目盛りは対数）、縦＝読まれた率。点の色＝区分。点をタップするとタイトル
   function impScatter(host, M) {
@@ -1649,22 +1666,38 @@
       rows.push(el('tr', {}, [el('td', {}, [label, help ? hq(help) : null]), el('td', { class: 'num' + (hiA ? ' hi' : ''), text: isNum(va) ? f(va) : '—' }), el('td', { class: 'num' + (hiB ? ' hi' : ''), text: isNum(vb) ? f(vb) : '—' })]));
     };
     var n = function (v) { return fmt(v); }, P = function (v) { return v + '%'; }, Y = function (v) { return '¥' + fmt(v); };
-    grp('この期間（' + md(R.from) + '〜' + md(R.to) + '・記事ごとに記録した日だけ）');
+    // この期間：日ごとの記録の合計。記録がない日（公開日より前は数えない）を記事ごとに出す（v1.8.1）
+    var cvr = R.cover || {}, miss = function (a) { return (cvr.impMissing || []).filter(function (d) { return !a[2] || d >= a[2]; }); };
+    var missText = function (a) { var m = miss(a); return m.length ? m.length + '日（' + m.slice(0, 3).map(md).join('・') + (m.length > 3 ? ' ほか' : '') + '）' : 'なし'; };
+    grp('この期間（' + md(R.from) + '〜' + md(R.to) + '）：日ごとの記録の合計');
     line('インプレッション', 'imp', pa && pa[4], pb && pb[4], n, true); line('PV', 'pv', pa && pa[5], pb && pb[5], n, true); line('読まれた率', 'ctr', pa && pa[6], pb && pb[6], P, true);
     line('スキ', 'likes', pa && pa[7], pb && pb[7], n, true); line('スキ率', 'rate', pa && pa[8], pb && pb[8], P, true); line('コメント', 'comments', pa && pa[9], pb && pb[9], n, true);
     if ((pa && isNum(pa[10]) && pa[10] > 0) || (pb && isNum(pb[10]) && pb[10] > 0)) line('売上', 'sales', pa && pa[10], pb && pb[10], Y, true);
-    line('記録した日数', 'days', pa && pa[11], pb && pb[11], function (v) { return v + '日'; }, false);
+    if (MINE.data.likesIn) { var li = MINE.data.likesIn, lv = function (a) { return a[2] && a[2] > R.to ? null : (li[a[0]] || 0); }; line('スキ（スキした日で数える）', 'likesBy', lv(A), lv(B), n, true); }
+    line('数字があった日数', 'days', pa && pa[11], pb && pb[11], function (v) { return v + '日'; }, false);
+    rows.push(el('tr', {}, [el('td', {}, ['記録がない日', hq('missing')]), el('td', { text: missText(A) }), el('td', { text: missText(B) })]));
     rows.push(el('tr', {}, [el('td', {}, ['区分', hq('quad')]), el('td', { text: qOf[A[0]] || '—' }), el('td', { text: qOf[B[0]] || '—' })]));
-    grp('全期間（いまの数・最後に記録した時点）');
-    line('全期間のPV', 'pvTotal', A[6], B[6], n, true); line('スキ', 'likes', A[4], B[4], n, true); line('コメント', 'comments', A[5], B[5], n, true); line('スキ率', 'rate', A[8], B[8], P, true);
-    line('インプレッション（記録した日の合計）', 'imp', A[11], B[11], n, true); line('読まれた率（同じ日のPVから）', 'ctr', A[11] >= 100 ? A[12] : null, B[11] >= 100 ? B[12] : null, P, true);
+    // 公開からの合計：note の記事一覧と同じ数え方（インプレッション・PVは日ごとの記録が公開日からそろっている記事だけ）
+    var II = (D && D.impInfo) || {}, ta = stampMd(A[16]), tb = stampMd(B[16]), at = ta === tb ? ta : '';
+    grp('公開からの合計（note の記事一覧とくらべる用）');
+    line('インプレッション（' + (II.covTo ? md(II.covTo) + 'までの記録' : '記録') + '）', 'life', A[14], B[14], n, true);
+    line('PV（' + (II.covTo ? md(II.covTo) + 'までの記録' : '記録') + '）', 'life', A[15], B[15], n, true);
+    var lc = function (a) { return isNum(a[14]) && a[14] >= ART_MIN_IMP ? Math.round(a[15] / a[14] * 1000) / 10 : null; };
+    line('読まれた率（公開から）', 'ctr', lc(A), lc(B), P, true);
+    line('スキ' + (at ? '（' + at + ' 時点）' : '（取った時点）'), 'life', A[4], B[4], n, true); line('コメント' + (at ? '（' + at + ' 時点）' : '（取った時点）'), 'life', A[5], B[5], n, true);
+    if (isNum(A[6]) || isNum(B[6])) {
+      grp(pvOld() ? '参考：note の旧い集計（stats/pv）' : '全期間（「PV入力」の値）');
+      line(pvOld() ? 'ビュー（旧集計）' : '全期間のPV', pvOld() ? 'pvOld' : 'pvTotal', A[6], B[6], n, true); line(pvOld() ? 'スキ率（スキ÷旧集計のビュー）' : 'スキ率', 'rate', A[8], B[8], P, true);
+    }
     grp('公開と伸び方');
     rows.push(el('tr', {}, [el('td', { text: '公開日' }), el('td', { text: A[2] ? mdw(A[2]) : '—' }), el('td', { text: B[2] ? mdw(B[2]) : '—' })]));
     line('公開からの日数', null, days(A), days(B), function (v) { return v + '日'; }, false);
     if (C) { [1, 2].forEach(function (i) { line(C.points[i] + '日目までのスキ', 'likes', cv[A[0]] ? cv[A[0]][5][i] : null, cv[B[0]] ? cv[B[0]][5][i] : null, n, true); line(C.points[i] + '日目までのPV', 'pv', cv[A[0]] ? cv[A[0]][4][i] : null, cv[B[0]] ? cv[B[0]][4][i] : null, n, true); }); }
     put('cmpArtTable', el('table', { class: 'cmpt' }, [el('thead', {}, el('tr', {}, [el('th', { text: '' }), el('th', {}, link('A', A[3])), el('th', {}, link('B', B[3]))])), el('tbody', {}, rows)]));
     $('cmpArtSub').textContent = '数字が大きいほうを緑の太字にしています';
-    $('cmpArtHint').textContent = '「この期間」はインプレッションを記録した日の合計です（記録がない記事は —）。読まれた率は、表示が100回未満のときは出していません。' + impCover() + 'テーマ・公開日のちがいも数字に表れるので、「どこがちがうか」を見る材料として使ってください。';
+    var pend = cvr.impPending ? md(cvr.impPending[0]) + (cvr.impPending[1] !== cvr.impPending[0] ? '〜' + md(cvr.impPending[1]) : '') + ' の分は、note の集計が終わってから（翌朝の取得で）入ります。' : '';
+    var lifeNote = (isNum(A[14]) && isNum(B[14])) ? '' : '「公開からの合計」のインプレッション・PVは、公開日からの日ごとの記録がそろっていない記事は — です' + (II.contFrom ? '（そろっているのは ' + md(II.contFrom) + '〜' + md(II.covTo) + '）' : '') + '。';
+    $('cmpArtHint').textContent = '「この期間」は、その記事に数字があった日の合計です（記録がない日は入っていません）。' + pend + lifeNote + 'note の記事一覧は今日の分も入るので、「公開からの合計」より少し多くなります。読まれた率は、表示が100回未満のときは出していません。' + impCover();
   }
   function renderTriggers() {
     var F = MINE.data.triggers;
@@ -1699,8 +1732,11 @@
   }
   function copyCsv(rows) { copyText(csvText(rows).replace(/^\uFEFF/, ''), 'CSVをコピーしました（' + (rows.length - 1) + '行）。スプレッドシートやメモ帳に貼り付けてください。'); }
   function csvArticles() {
-    return [['公開日', 'タイトル', 'URL', 'スキ', 'コメント', '全期間PV', '前日のPV', 'スキ率(%)', '1日で増えたスキ', '7日で増えたスキ', 'インプレッション（記録した日の合計）', '読まれた率(%)（同じ日のPV÷インプレッション）', 'インプレッションを記録した日数']]
-      .concat((D.articles || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13]]; }));
+    var II = (D && D.impInfo) || {};
+    return [['公開日', 'タイトル', 'URL', 'スキ', 'コメント', 'スキ・コメントを取った日時', pvOld() ? 'ビュー（note の旧い集計・全期間）' : '全期間PV', '前日のPV', pvOld() ? 'スキ率(%)（スキ÷旧集計のビュー）' : 'スキ率(%)', '1日で増えたスキ', '7日で増えたスキ',
+      'インプレッション（記録した日の合計）', '読まれた率(%)（同じ日のPV÷インプレッション）', 'インプレッションを記録した日数',
+      '公開からのインプレッション（' + (II.covTo || '') + 'までの記録・そろっている記事だけ）', '公開からのPV（同）']]
+      .concat((D.articles || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[16] || '', r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15]]; }));
   }
   function csvDaily() {
     var R = MINE.data.range;
@@ -1711,7 +1747,7 @@
     Object.keys(M.quads).forEach(function (k) { (M.quads[k].items || []).forEach(function (r) { q[r[0]] = M.quads[k].label; }); });
     Object.keys(M.of || {}).forEach(function (key) { var Q = M.quads[M.of[key]]; if (Q) q[key] = Q.label; });   // すべての記事の区分（v1.8.0）
     (M.held || []).forEach(function (r) { q[r[0]] = '保留（' + HELD_WHY[r[13]] + '）'; });
-    return [['公開日', 'タイトル', 'URL', 'インプレッション', 'PV', '読まれた率(%)', 'スキ', 'スキ率(%)', 'コメント', '売上(円)', '記録した日数', '区分']].concat((MINE.data.impArts || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], q[r[0]] || '']; }));
+    return [['公開日', 'タイトル', 'URL', 'インプレッション（この期間・記録した日の合計）', 'PV（同）', '読まれた率(%)', 'スキ（同）', 'スキ率(%)', 'コメント（同）', '売上(円)（同）', '記録した日数', '区分']].concat((MINE.data.impArts || []).map(function (r) { return [r[2], r[1], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], q[r[0]] || '']; }));
   }
   function csvFans(F) { return [['順位', 'ニックネーム', 'ID', 'プロフィールURL', 'スキした記事数', 'コメント数', '最初のスキ', '最後のスキ', '最後のコメント', 'はじめて']].concat(F.rows.map(function (r) { return [r[0], r[1], r[2], r[3], r[4], r[10], r[6], r[7], r[11], r[9]]; })); }
   function withFans(fn) {

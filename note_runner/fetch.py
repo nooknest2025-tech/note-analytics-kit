@@ -42,6 +42,7 @@ def plan_settings(state, env_own="", env_bench=None):
         "impDates": set(x for x in ((state or {}).get("impDates") or []) if isinstance(x, str)) if "impDates" in (state or {}) else None,
         "impBackfill": _int(st.get("impBackfill") if st.get("impBackfill") is not None else 30, 30, 0, 120),
         "impProven": bool((state or {}).get("impProven")),
+        "sheetVersion": str((state or {}).get("version") or "")[:20],
         "known": {r[0]: {"likes": r[1], "likersAt": r[2] or 0, "hasText": bool(r[3]), "lastLike": r[4] or 0, "publishMs": r[5],
                          "commentersAt": (r[6] if len(r) > 6 else 0) or 0} for r in ((state or {}).get("ownArticles") or []) if r and r[0]},
     }
@@ -108,7 +109,9 @@ def run(http, P, now_ms, log, has_cookie=False, dash_off=False):
     elif P["lastDashDate"] == today:
         D["state"], D["reason"] = "skipped", "今日はもう取得しています（1日1回）"
         # 全期間PVは1日1回。インプレッションの記録が抜けている日があれば、その分だけ続きを取る（v1.4.0）
-        if P["dashImp"] and P["impDates"] is not None and imp_plan(P, now_ms):
+        if P["dashImp"] and P["impDates"] is None:
+            D["notes"].append("インプレッションのさかのぼり：シートの受け取り用が v1.8.0 より前" + (f"（v{P['sheetVersion']}）" if P["sheetVersion"] else "") + "なので、していません（受け取り用のデプロイを新しい版にすると始まります）")
+        elif P["dashImp"] and imp_plan(P, now_ms, arts):
             task("インプレッションのさかのぼり", lambda: _gql(http, P, now_ms, out, arts))
     else:
         task("PVの自動取得", lambda: _dash(http, P, now_ms, out, arts, log))

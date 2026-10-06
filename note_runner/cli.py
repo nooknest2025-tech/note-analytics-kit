@@ -123,7 +123,7 @@ def run(env, argv=None, source="github", log_stream=None, opener=None, sender=No
             return 1, log
         # no_dashboard のときは Cookie をわざと使わないので「なし」とは書かない（誤解を防ぐ）
         cookie_txt = ('あり ' + core.mask(cookie)) if cookie else ('この実行では使わない（--no-dashboard）' if a.no_dashboard else 'なし')
-        log(f"シートの設定を読みました：自分={state.get('own') or '（なし）'}／ベンチマーク={','.join(state.get('bench') or []) or '（なし）'}／Cookie={cookie_txt}")
+        log(f"シートの設定を読みました：自分={state.get('own') or '（なし）'}／ベンチマーク={','.join(state.get('bench') or []) or '（なし）'}／Cookie={cookie_txt}／シート v{str(state.get('version') or '?')[:20]}")
     P = fetch.plan_settings(state, env.get("NOTE_OWN", ""), [b for b in (env.get("NOTE_BENCH") or "").split(",") if b])
     if not P["own"] and not P["bench"]:
         log("✗ 自分のクリエイターIDもベンチマークもありません（シートの「設定」を確認してください）。")
