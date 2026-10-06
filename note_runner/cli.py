@@ -148,7 +148,7 @@ def run(env, argv=None, source="github", log_stream=None, opener=None, sender=No
         P["deadline"] = time.time() + int(tl) * 60
         log(f"実行時間の上限：{tl} 分を過ぎたら、さかのぼりを止めて取れた分を送ります（のこりは次回）")
     P["impBudget"] = fetch.imp_budget(P.get("impBackfill") or 0)   # v1.4.5：手動でも毎日の実行でも、さかのぼる日数に合わせる（1日分＝1〜3回・間隔3秒以上は変えない）
-    http = Client(cookie_value=cookie, interval_sec=P["interval"], sleep=sleep, opener=opener, max_requests=300 + max(0, P.get("impBudget", fetch.IMP_REQ_BUDGET) - fetch.IMP_REQ_BUDGET) + (COMMENTERS_FULL_EXTRA if P.get("commentersFull") else 0))
+    http = Client(cookie_value=cookie, interval_sec=P["interval"], sleep=sleep, opener=opener, max_requests=300 + max(0, P.get("impBudget", fetch.IMP_REQ_BUDGET) - fetch.IMP_REQ_BUDGET) + (COMMENTERS_FULL_EXTRA if P.get("commentersFull") else 0) + max(0, P["benchPages"] - 3) * len(P["bench"]))
     out = fetch.run(http, P, started, log, has_cookie=bool(cookie), dash_off=bool(a.no_dashboard))
     msg = fetch.summary_message(out, http.requests)
     bodies = chunk_payloads(out, uuid.uuid4().hex[:12], source, started, http.requests, msg, has_cookie=bool(cookie), repo=repo_of(env))

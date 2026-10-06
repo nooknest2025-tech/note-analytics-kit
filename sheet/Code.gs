@@ -1672,6 +1672,8 @@ var NA_MAX_COMMENTER_PAGES = 30;      // 1記事あたりのコメント一覧�
 var NA_PROP_JOB = 'NA_JOB', NA_PROP_KEY = 'GEMINI_API_KEY', NA_PROP_BOOK = 'NA_SPREADSHEET_ID', NA_PROP_LASTFULL = 'NA_LAST_FULL_DATE';
 var NA_BUDGET_MS = 270000;      // 1回の実行で使う時間（Apps Script の上限 6 分より短く）
 var NA_MAX_REQUESTS = 300;      // 1回の取得（続きを含む）で note にアクセスする回数の上限
+var NA_BENCH_PAGES_ALL = 1000;  // v1.8.2：ベンチマーク「すべて」（1000ページ＝6000記事まで）
+var NA_LIST_RESERVE = 80;       // ベンチマークの記事一覧は、のこりのアクセスがこれより少なくなったら止めて、次回その続きから
 var NA_MIN_INTERVAL_SEC = 2;    // リクエスト間隔の下限（既定は3秒）
 var NA_MAX_BENCH = 5;
 var NA_DASH_MAX_PAGES = 50;   // PV自動取得：stats/pv（1ページ＝10記事）のページ上限
@@ -1687,7 +1689,7 @@ var NA_SETTINGS = [
   ['1日の取得回数（自分の記事）', 1, '1・2・4 のどれか。初速（公開24時間のスキ）を正確に見たいときは 2 か 4。ベンチマークはいつも1日1回'],
   ['リクエストの間隔（秒）', 3, 'noteに負担をかけないための待ち時間。' + NA_MIN_INTERVAL_SEC + '秒より短くはできません'],
   ['自分の記事：最大ページ数', 0, '1ページ＝6記事。0なら全部（上限300ページ）'],
-  ['ベンチマーク：最大ページ数', 3, '1ページ＝6記事。3なら最新18記事（noteに負担をかけないよう少なめ。最大10）'],
+  ['ベンチマーク：最大ページ数', 3, '1ページ＝6記事。3なら最新18記事（noteに負担をかけないよう少なめ）。好きな数か「すべて」（その人の記事を全部）にできます。多いときも間隔は3秒以上のまま。1回で取りきれないときは、取れた分を残して次回その続きから取ります'],
   ['本文の文字数を取得', '自分だけ', '「自分だけ」「すべて」「しない」。記事1本ごとに1回アクセスするので、まだ取っていない記事だけ取ります'],
   ['1回に文字数を取る記事の上限', 30, '残りは次回に取ります'],
   ['誰からのスキを記録（自分の記事だけ）', 'はい', '自分の記事にスキしてくれた人（公開されている名前とID）を記録し、よくスキしてくれる人・新しくスキしてくれた人を一覧にします。お礼や、その人の記事を読みに行くため。ベンチマークの人の記事では取りません'],
@@ -1874,7 +1876,7 @@ function naGetSettings_() {
     source: naStr(g('取得方法')) === 'RSS' ? 'RSS' : (/^github$/i.test(naStr(g('取得方法'))) ? 'GitHub' : 'JSON'), consent: naStr(g('公開JSONの注意を読んだ')) === 'はい',
     hour: hour, runs: runs, intervalMs: Math.max(NA_MIN_INTERVAL_SEC, naNum(g('リクエストの間隔（秒）')) || 3) * 1000,
     ownPages: Math.min(300, Math.max(0, parseInt(g('自分の記事：最大ページ数'), 10) || 0)) || 300,
-    benchPages: Math.min(10, Math.max(1, parseInt(g('ベンチマーク：最大ページ数'), 10) || 3)),
+    benchPages: naBenchPagesSetting_(g('ベンチマーク：最大ページ数')),
     detailMode: ['自分だけ', 'すべて', 'しない'].indexOf(naStr(g('本文の文字数を取得'))) >= 0 ? naStr(g('本文の文字数を取得')) : '自分だけ',
     detailLimit: Math.max(0, parseInt(g('1回に文字数を取る記事の上限'), 10) || 0),
     snapDays: Math.max(1, parseInt(g('記事推移を残す期間（公開から何日）'), 10) || 30),
@@ -1892,6 +1894,8 @@ function naGetSettings_() {
     impBackfill: naImpBackfillSetting_(g('インプレッション：1回でさかのぼる日数'))
   };
 }
+/* v1.8.2：ベンチマークの最大ページ数。空・読めない値は3（今まで通り）。「すべて」は全部（NA_BENCH_PAGES_ALL ページまで）。上限10ページはなくした */
+function naBenchPagesSetting_(v) { if (/^\s*すべて\s*$/.test(String(v === null || v === undefined ? '' : v))) return NA_BENCH_PAGES_ALL; var n = parseInt(v, 10); return isNaN(n) || n < 1 ? 3 : Math.min(NA_BENCH_PAGES_ALL, n); }
 function naImpBackfillSetting_(v) { if (v === '' || v === null || v === undefined) return NA_IMP_BACKFILL_MAX; var n = parseInt(v, 10); n = isNaN(n) ? NA_IMP_BACKFILL_MAX : Math.max(0, Math.min(NA_IMP_BACKFILL_MAX, n)); return n === 30 ? NA_IMP_BACKFILL_MAX : n; }   // v1.8.2：空・「すべて」・以前の既定30 → 上限なし（最初の記事の公開日まで）
 function naCheckFetchAllowed_(st) {
   if (!st.own && !st.bench.length) return '「設定」シートに、自分のクリエイターIDか、ベンチマークのIDを入れてください。';
@@ -2032,7 +2036,17 @@ function naDoTask_(t, job, ctx) {
     var max = t.own ? st.ownPages : st.benchPages;
     job.tasks.shift();
     var recentOnly = !job.full;   // 2回目以降の取得は、初速用に新しい記事のページだけ
-    if (!L.isLast && t.page < max && !(recentOnly && allOld) && L.articles.length) job.tasks.unshift({ type: 'list', id: t.id, own: t.own, page: t.page + 1 });
+    var more = !L.isLast && t.page < max && !(recentOnly && allOld) && L.articles.length, next = t.page + 1;
+    if (!t.own) {   // v1.8.2：ベンチマークの記事が多いとき：アクセスがのこり少なければ止めて、次回その続きのページから
+      var sp = PropertiesService.getScriptProperties(), rk = 'NA_BENCH_NEXT_' + t.id, saved = parseInt(sp.getProperty(rk), 10) || 0;
+      if (more && t.page === 1 && job.full && saved > 2) next = Math.min(saved, max);
+      if (!more) { if (saved && (L.isLast || !L.articles.length)) sp.deleteProperty(rk); }
+      else if (job.requests >= NA_MAX_REQUESTS - NA_LIST_RESERVE) {
+        sp.setProperty(rk, String(next)); more = false;
+        if (job.errors.length < 20) job.errors.push(t.id + '（記事一覧）: アクセスの上限が近いので ' + t.page + 'ページ目で止めました（次回 ' + next + 'ページ目から）');
+      }
+    }
+    if (more) job.tasks.unshift({ type: 'list', id: t.id, own: t.own, page: next });
     return;
   }
   if (t.type === 'details') {

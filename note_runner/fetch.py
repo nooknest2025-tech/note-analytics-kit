@@ -24,7 +24,7 @@ def plan_settings(state, env_own="", env_bench=None):
         "own": own, "bench": bench,
         "interval": max(3.0, float(st.get("intervalSec") or 3)),
         "ownPages": _int(st.get("ownPages") or 300, 300, 1, 300),
-        "benchPages": _int(st.get("benchPages") or 3, 3, 1, 10),
+        "benchPages": bench_pages(st.get("benchPages")),   # v1.4.5：上限10をなくした（「すべて」＝BENCH_PAGES_ALL）
         "detailMode": st.get("detailMode") if st.get("detailMode") in ("自分だけ", "すべて", "しない") else "自分だけ",
         "detailLimit": _int(st.get("detailLimit") if st.get("detailLimit") is not None else 30, 30, 0, 100),
         "snapDays": _int(st.get("snapDays") or 30, 30, 1, 3650),
@@ -83,6 +83,9 @@ def run(http, P, now_ms, log, has_cookie=False, dash_off=False):
         def lst(cid=cid, own=own):
             mx = P["ownPages"] if own else P["benchPages"]
             for page in range(1, mx + 1):
+                if not own and page > 1 and (time_up(P) or http.requests >= http.max_requests - IMP_REQ_RESERVE):   # v1.4.5：時間・アクセスの上限が近い → 取れた分を送る
+                    out["dash"]["notes"].append(f"記事一覧 {cid}：{page - 1} ページ目で止めました（時間かアクセスの上限が近いため。次回また取ります）")
+                    break
                 L = core.parse_list(json.loads(http.get_public(core.list_url(cid, page))), cid)
                 for a in L["articles"]:
                     if a["creator"] != cid:
@@ -262,6 +265,7 @@ LIKER_OLD_CAP = 200       # v1.4.3 までの打ち切り（1記事5ページ）�
 LIKER_REQ_BUDGET = 120    # スキした人に使うアクセス回数の上限（1回の実行あたり。足りない分は次回に続きから）
 COMMENTER_OLD_CAP = 30    # v1.4.3 までの打ち切り（1記事3ページ＝コメント30件）
 COMMENTER_MAX_PAGES = 30  # コメントは1記事30ページまで（ふつうは1〜2ページ）
+BENCH_PAGES_ALL = 1000     # v1.4.5：ベンチマーク「すべて」（6000記事まで）
 IMP_DAYS_DEFAULT = 7300    # v1.4.5：1回でさかのぼる日数の既定＝上限なし（最初の記事の公開日まで。以前は30）
 IMP_BUDGET_MAX = 7300 * 3  # さかのぼりのアクセス回数の上限（1日分＝1〜3回。実際は時間の上限で止まる）
 IMP_REQ_BUDGET = 90        # さかのぼりに使うアクセス回数の上限（1回の実行あたり。あとの取得のぶんを残す）
@@ -286,6 +290,17 @@ def imp_budget(days):
 def time_up(P):
     """GitHub の実行時間の上限より前に、さかのぼりを止める（取れた分は送る。のこりは次回）"""
     return bool(P.get("deadline")) and P.get("clock", time.time)() >= P["deadline"]
+
+
+def bench_pages(v):
+    """ベンチマークの最大ページ数：空・読めない値は3。「すべて」は BENCH_PAGES_ALL"""
+    if str(v if v is not None else "").strip() == "すべて":
+        return BENCH_PAGES_ALL
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return 3
+    return 3 if n < 1 else min(BENCH_PAGES_ALL, n)
 
 
 def imp_floor(P, arts):
