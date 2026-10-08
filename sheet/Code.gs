@@ -228,7 +228,7 @@ function naCallOtherAi_(provider, prompt, st) {
 }
 
 /* ===== note分析シート：共通ロジック（Apps Script とテストで共用。GAS の API は使わない） ===== */
-var NA_VERSION = '1.8.2';
+var NA_VERSION = '1.8.3';
 var NA_API = 'https://note.com/api';
 var NA_PAGE_SIZE = 6;            // 一覧 API は 1 ページ 6 件（2026-10 時点で確認）
 var NA_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -1116,6 +1116,7 @@ function naParseGqlDashboard(json) {
   });
   var s = (d.dashboardSummary && typeof d.dashboardSummary === 'object') ? d.dashboardSummary : {}, sm = (s.metrics && typeof s.metrics === 'object') ? s.metrics : {};
   var pi = conn.pageInfo || {};
+  if (typeof pi.hasNextPage !== 'boolean' || (pi.hasNextPage && !pi.endCursor)) throw naError('PARSE', 'ページの完了状態・続きのカーソルが不明なため記録しませんでした。');
   var allZero = items.length > 0 && items.every(function (x) { return !x.pv && !x.imp; });
   var o = function (v) { return (v === null || v === undefined || v === '') ? '' : naNum(v); };   // null・項目なしは「データなし」（0 とは区別）
   return { items: items, skipped: skipped, hasNext: !!pi.hasNextPage && !!pi.endCursor, endCursor: naStr(pi.endCursor), lastUpdatedAt: naStr(s.lastUpdatedAt),
@@ -2934,7 +2935,8 @@ function naDashTask_(t, job, ctx) {
     if (!t.dates) {   // v1.8.0：前日＋まだ記録していない過去の日（新しい順・設定の日数まで）
       var chk = naImpChecked_(), floor = '';
       Object.keys(ctx.store.map).forEach(function (k) { var a = ctx.store.map[k]; if (a.creator === st.own && a.publishMs) { var d = naJst(a.publishMs).date; if (!floor || d < floor) floor = d; } });
-      t.dates = st.impBackfill ? naImpPlanDates(chk.map, t.date, floor, st.impBackfill) : naImpPlanDates(chk.map, t.date, t.date, 1);
+      var have = naImpRefreshMap_(chk.map, t.date);
+      t.dates = st.impBackfill ? naImpPlanDates(have, t.date, floor, st.impBackfill) : naImpPlanDates(have, t.date, t.date, 1);
       t.budget = Math.max(NA_IMP_REQ_BUDGET, Math.min(200, (st.impBackfill || 0) * 3));   // v1.8.2：さかのぼる日数に合わせる（シートで取得するときは1回300アクセスの中で、ほかの取得の分を残す）
       t.di = 0; t.proven = chk.proven; t.reqStart = job.requests; t.done = []; t.busy = [];
       if (!t.dates.length) { job.tasks.shift(); return; }
@@ -2956,15 +2958,18 @@ function naDashTask_(t, job, ctx) {
       try { Q = naParseGqlDashboard(gj); }
       catch (e) { if (e.naCode === 'GQL' && !t.minimal) { t.minimal = true; D.notes.push('新ダッシュボード：スキ・コメント・売上の項目が使えなかったので、PV・インプレッションだけ取得します'); return; } throw e; }
       if (t.page === 1) {
-        if (naDayReady(Q.lastUpdatedAt, t.date) === false) { t.busy.push(t.date); return naImpNextDate_(t, job, D); }   // まだ note 側で集計中：次回に回す
+        if (naDayReady(Q.lastUpdatedAt, t.date) !== true) { t.busy.push(t.date); return naImpNextDate_(t, job, D); }   // まだ note 側で集計中：次回に回す
         if (Q.suspectAnonymous) {
           if (!t.proven) { D.notes.push('新ダッシュボード：数字がすべて0でした（ログインが通っていない可能性）。記録しませんでした'); naImpFinish_(t, D); job.tasks.shift(); return; }
         } else t.proven = true;
-        ctx.impTotal = Q.hasSummary ? Q.summary : null; ctx.impBuf = [];
+        if (!Q.hasSummary || Q.summary.pv === '' || Q.summary.imp === '') throw naError('PARSE', '日次合計のPV・インプレッションが欠けています。取得済みにせず次回に取ります。');
+        ctx.impTotal = Q.summary; ctx.impBuf = [];
       }
+      if (Q.skipped) throw naError('PARTIAL', t.date + '：記事キーを読めない行があるため未完了です。');
       Q.items.forEach(function (x) { ctx.impBuf.push([t.date, '日次', st.own, x.key, title(x.key, x.title), x.pv, x.imp, x.likes, x.comments, x.sales, NA_METHOD_GQL, stamp]); });
       D.pages++;
       if (Q.hasNext && t.page < Math.min(NA_GQL_MAX_PAGES, st.dashPages)) { t.after = Q.endCursor; t.page++; return; }
+      if (Q.hasNext) { ctx.impBuf = null; ctx.impTotal = null; throw naError('PARTIAL', t.date + '：ページ上限で止まったため未完了です。次回に取ります。'); }
       // 1日分がそろったときだけ書く（途中で止まった日は次回に回す）
       var T = ctx.impTotal || {}, nArt = ctx.impBuf.length;
       ctx.impBuf.forEach(function (r) { ctx.pvRows.push(r); }); D.dailyRows += nArt;
@@ -3000,11 +3005,39 @@ function naImpFinish_(t, D) {
 /* 「PV入力」に追記（同じ日・期間・記事・方法の行はもう書かない） */
 function naWriteDashPv_(rows) {
   if (!rows.length) return 0;
-  var seen = {};
-  naReadRows_(NA_SHEETS.pv, NA_PV_COLS.length).forEach(function (r) { var m = naStr(r[10]); if (m === NA_METHOD_STATS || m === NA_METHOD_GQL) seen[naJst(naParseTime(r[0])).date + '|' + naStr(r[1]) + '|' + naStr(r[3]) + '|' + m] = true; });
-  var out = rows.filter(function (r) { var k = r[0] + '|' + r[1] + '|' + r[3] + '|' + r[10]; if (seen[k]) return false; seen[k] = true; return true; });
-  naAppendRows_(NA_SHEETS.pv, out);
-  return out.length;
+  var old = naReadRows_(NA_SHEETS.pv, NA_PV_COLS.length), index = {}, append = [], updates = {}, changed = 0;
+  var key = function (r) { return naJst(naParseTime(r[0])).date + '|' + naStr(r[1]) + '|' + naStr(r[2]) + '|' + naStr(r[3]) + '|' + naStr(r[10]); };
+  old.forEach(function (r, i) { if (naStr(r[10]) === NA_METHOD_STATS || naStr(r[10]) === NA_METHOD_GQL) index[key(r)] = { row: r, pos: i }; });
+  rows.forEach(function (r) {
+    var k = key(r), found = index[k];
+    if (!found) { var added = r.slice(); index[k] = { row: added, pos: -1 }; append.push(added); changed++; return; }
+    var next = found.row.slice(), different = false;
+    // 欠損で確定値を消さない。0は有効な訂正値。既存の行を使うので二重計上しない。
+    for (var c = 4; c <= 9; c++) { if (r[c] !== '' && r[c] !== null && r[c] !== undefined && String(next[c]) !== String(r[c])) { next[c] = r[c]; different = true; } }
+    if (!different) return;
+    next[11] = r[11];
+    if (found.pos < 0) { for (var j = 0; j < next.length; j++) found.row[j] = next[j]; }
+    else { found.row = next; updates[found.pos] = next; }
+    changed++;
+  });
+  // 日次合計と全記事が同じ受信にそろった日だけ、応答から消えた記事の古い値を0にする。
+  rows.filter(function (r) { return r[1] === NA_PV_DAY_TOTAL && r[10] === NA_METHOD_GQL; }).forEach(function (total) {
+    var incoming = {};
+    rows.forEach(function (r) { if (r[0] === total[0] && r[1] === '日次' && r[2] === total[2] && r[10] === total[10]) incoming[naStr(r[3])] = true; });
+    var m = naStr(total[4]).match(/数字があった記事 (\d+) 本/); if (!m || Object.keys(incoming).length !== +m[1]) return;
+    old.forEach(function (r, pos) { if (naJst(naParseTime(r[0])).date !== total[0] || r[1] !== '日次' || r[2] !== total[2] || r[10] !== total[10] || incoming[naStr(r[3])]) return;
+      if ([5, 6, 7, 8, 9].every(function (c) { return r[c] === 0; })) return;
+      var next = r.slice(); for (var c = 5; c <= 9; c++) next[c] = 0; next[11] = total[11]; updates[pos] = next; changed++;
+    });
+  });
+  var positions = Object.keys(updates).map(Number).sort(function (a, b) { return a - b; }), sh = positions.length ? naSheet_(NA_SHEETS.pv) : null;
+  // 隣接行はまとめて書く。3万行全体を毎回書き換えない。
+  for (var i = 0; i < positions.length;) { var first = positions[i], batch = [updates[first]], last = first; i++;
+    while (i < positions.length && positions[i] === last + 1) { last = positions[i++]; batch.push(updates[last]); }
+    sh.getRange(first + 2, 1, batch.length, NA_PV_COLS.length).setValues(batch.map(naRowSafe_));
+  }
+  naAppendRows_(NA_SHEETS.pv, append);
+  return changed;
 }
 function naDashMessage_(job) {
   var D = job.dash; if (!D) return '';
@@ -3114,13 +3147,29 @@ function naRxNoSecretKeys_(v, depth) {
 function naImpTotalTitle_(n) { return 'アカウント全体' + (typeof n === 'number' ? '（この日に数字があった記事 ' + n + ' 本）' : ''); }
 /* 「日次合計」を記録した日（=その日を確認済み）と、0 でない数字を一度でも記録できたか（ログインが通っていた証拠） */
 function naImpChecked_(rows) {
-  var dates = {}, proven = false;
+  var dates = {}, proven = false, articles = {}, totals = [];
   (rows || naReadRows_(NA_SHEETS.pv, NA_PV_COLS.length)).forEach(function (r) {
-    if (naStr(r[1]) !== NA_PV_DAY_TOTAL || naStr(r[10]) !== NA_METHOD_GQL) return;
-    var d = naJst(naParseTime(r[0])).date; if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-    dates[d] = true; if (naNum(r[5]) > 0 || naNum(r[6]) > 0) proven = true;
+    if (naStr(r[10]) !== NA_METHOD_GQL) return;
+    var d = naJst(naParseTime(r[0])).date, group = d + '|' + naStr(r[2]); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    if (naStr(r[1]) === '日次' && naStr(r[3])) { (articles[group] = articles[group] || {})[naStr(r[3])] = true; }
+    if (naStr(r[1]) === NA_PV_DAY_TOTAL) totals.push({ row: r, date: d, group: group });
+  });
+  totals.forEach(function (x) { var r = x.row;
+    // 空欄は未確認。正しい0件の日はPV=0・表示回数=0として区別する。
+    if (r[5] === '' || r[5] === null || r[5] === undefined || r[6] === '' || r[6] === null || r[6] === undefined) return;
+    if (naNum(r[5]) > 0 || naNum(r[6]) > 0) proven = true;
+    var m = naStr(r[4]).match(/数字があった記事 (\d+) 本/);
+    // 合計行が届いても、分割送信された記事行が不足していれば未完了。
+    if (!m || Object.keys(articles[x.group] || {}).length < +m[1]) return;
+    dates[x.date] = true;
   });
   return { dates: Object.keys(dates).sort(), map: dates, proven: proven };
+}
+// 訂正を拾うため、前日までの3日分を毎回再確認する。
+function naImpRefreshMap_(map, yday) {
+  var out = {}, from = naJst(naParseTime(yday) - 2 * NA_DAY_MS).date;
+  Object.keys(map).forEach(function (d) { if (d < from || d > yday) out[d] = true; });
+  return out;
 }
 
 /* ---------- state：外部の取得が「どこまで取ったか」を知るための最小限の情報（記事キーと数字だけ） ---------- */
@@ -3137,7 +3186,7 @@ function naRxState_(st) {
     settings: { intervalSec: st.intervalMs / 1000, ownPages: st.ownPages, benchPages: st.benchPages, detailMode: st.detailMode, detailLimit: st.detailLimit, snapDays: st.snapDays,
       likers: st.likers, likerPages: st.likerPages, commenters: st.commenters, dash: st.dash, dashImp: st.dashImp, dashPages: st.dashPages, dashShareOverride: st.dashShareOverride, impBackfill: st.impBackfill },
     sharing: { shared: sh.shared }, ownArticles: own,
-    impDates: imp.dates, impProven: imp.proven };   // v1.8.0：インプレッションを記録済みの日（ランナーは残りの日だけ取る）
+    impDates: Object.keys(naImpRefreshMap_(imp.map, naJst(Date.now() - NA_DAY_MS).date)).sort(), impProven: imp.proven };   // v1.8.0：インプレッションを記録済みの日（ランナーは残りの日だけ取る）
 }
 
 /* ---------- data：検査してから、ふだんと同じシートに書く ---------- */
@@ -3248,11 +3297,17 @@ function naRxValidate_(b, st) {
   var methods = [NA_METHOD_STATS, NA_METHOD_GQL];
   var pv = arr('pv').map(function (p) {
     var key = S(p.key, 30), date = S(p.date, 40), m = S(p.method, 40), per = S(p.period, 10);
-    var total = per === NA_PV_DAY_TOTAL && m === NA_METHOD_GQL && key === '';   // v1.8.0：アカウント全体の日ごとの合計（記事キーは空）
+    var total = per === NA_PV_DAY_TOTAL && m === NA_METHOD_GQL && key === '';
+    if (total && (p.complete !== true || p.pv === '' || p.pv === null || p.pv === undefined || p.imp === '' || p.imp === null || p.imp === undefined || N(p.articles, 0, 1e6) === null)) { bad++; return null; }   // v1.8.0：アカウント全体の日ごとの合計（記事キーは空）
     if ((!total && !KEY.test(key)) || !DAY.test(date) || methods.indexOf(m) < 0 || (!total && ['全期間', '日次'].indexOf(per) < 0)) { bad++; return null; }
     var o = function (v, hi) { return v === '' || v === null || v === undefined ? '' : (N(v, 0, hi) === null ? '' : N(v, 0, hi)); };
     return { key: key, date: date, method: m, period: per, title: total ? naImpTotalTitle_(N(p.articles, 0, 1e6)) : S(p.title, 300), pv: o(p.pv, 1e9), imp: o(p.imp, 1e10), likes: o(p.likes, 1e8), comments: o(p.comments, 1e7), sales: o(p.sales, 1e10) };
   }).filter(Boolean);
+  pv.forEach(function (p) { if (p.period !== NA_PV_DAY_TOTAL) return;
+    var seen = {}; pv.forEach(function (a) { if (a.date === p.date && a.method === p.method && a.period === '日次') seen[a.key] = true; });
+    var m = p.title.match(/数字があった記事 (\d+) 本/);
+    if (!m || Object.keys(seen).length !== +m[1]) throw naError('PARTIAL', p.date + '：日次合計と記事数が一致しないため受け取りませんでした。');
+  });
   var log = null;
   if (b.log && typeof b.log === 'object') log = { result: ['成功', '一部エラー', '中断'].indexOf(S(b.log.result, 10)) >= 0 ? S(b.log.result, 10) : '一部エラー', requests: N(b.log.requests, 0, 10000) || 0,
     message: S(b.log.message, 3000), startedAt: N(b.log.startedAt, 946684800000, 4102444800000), cookie: ['ok', 'invalid', 'none', 'skipped'].indexOf(S(b.log.authState, 10)) >= 0 ? S(b.log.authState, 10) : '',
