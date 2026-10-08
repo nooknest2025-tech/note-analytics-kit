@@ -60,7 +60,7 @@ def chunk_payloads(out, run_id, source, started_ms, requests, message, has_cooki
            "authState": auth, "authReason": D["reason"] if D["state"] == "invalid" else "", "dashOk": D["state"] == "ok"}
     base = lambda: {"kind": "note-analytics", "action": "data", "runId": run_id, "source": source}
     bodies = []
-    for sec in ("articles", "snaps", "likers", "commenters", "pv"):
+    for sec in ("articles", "snaps", "likers", "commenters"):
         cur, size = [], 0
         for item in out[sec]:
             n = wire_len(item) + 1   # エスケープ後の長さ（日本語1文字＝6文字）。エスケープ前で数えると上限を超えることがある
@@ -69,6 +69,21 @@ def chunk_payloads(out, run_id, source, started_ms, requests, message, has_cooki
             cur.append(item); size += n
         if cur:
             b = base(); b[sec] = cur; bodies.append(b)
+    # 1日分の記事と合計を同じ送信に保つ。途中のチャンクだけで完了にならない。
+    groups = {}
+    for item in out["pv"]:
+        key = (item["date"], item["method"], "day" if item["period"] in ("日次", "日次合計") else item["period"])
+        groups.setdefault(key, []).append(item)
+    cur, size = [], 0
+    for group in groups.values():
+        n = sum(wire_len(item) + 1 for item in group)
+        if len(group) > ITEM_MAX["pv"] or n > MAX_CHUNK:
+            raise core.NaError("TOO_LARGE", "1日分のPVデータが送信上限を超えました。完了扱いにせず止めます")
+        if cur and (size + n > MAX_CHUNK or len(cur) + len(group) > ITEM_MAX["pv"]):
+            b = base(); b["pv"] = cur; bodies.append(b); cur, size = [], 0
+        cur.extend(group); size += n
+    if cur:
+        b = base(); b["pv"] = cur; bodies.append(b)
     fin = base()
     fin.update({"profiles": out["profiles"], "details": out["details"], "likersAt": out["likersAt"], "likersChecked": out["likersChecked"],
                 "commentersAt": out["commentersAt"], "commentersChecked": out["commentersChecked"], "log": log, "final": True})
@@ -204,3 +219,4 @@ def colab_main(dry_run=False, use_cookie=True):
     finally:
         env.clear()   # 入力した値をすぐ消す
     return code
+

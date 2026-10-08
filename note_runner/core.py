@@ -338,6 +338,8 @@ def parse_gql(j):
     summ = d.get("dashboardSummary") if isinstance(d.get("dashboardSummary"), dict) else {}
     sm = summ.get("metrics") if isinstance(summ.get("metrics"), dict) else {}
     pi = conn.get("pageInfo") or {}
+    if "hasNextPage" not in pi or (pi.get("hasNextPage") and not pi.get("endCursor")):
+        raise NaError("PARSE", "新ダッシュボード：ページの完了状態・続きのカーソルが不明なため記録しませんでした")
     all_zero = bool(items) and all(not x["pv"] and not x["imp"] for x in items)
     # 日ごとの合計（アカウント全体）。null・項目なしは「データなし」（0 とは区別して ""）
     total = {"pv": o(sm.get("pageViewCount")), "imp": o(sm.get("impressionCount")), "likes": o(sm.get("likeCount")), "comments": o(sm.get("commentCount")), "sales": o(sm.get("salesAmount"))}
@@ -376,3 +378,4 @@ def day_ready(last_updated, date_str):
         return None
     end = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=JST) + timedelta(days=1)
     return t >= end.timestamp() * 1000
+

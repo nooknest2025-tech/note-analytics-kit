@@ -360,6 +360,7 @@ def _gql(http, P, now_ms, out, arts):
                 D["notes"].append(f"インプレッション：のこり {len(dates) - di} 日分は次回に取ります（実行時間の上限が近いため）")
                 break
             rows, after, total, ok = [], None, None, True
+            seen_keys, seen_cursors = set(), set()
             for page in range(1, 11):
                 r = http.gql(core.gql_body(date, after, minimal))
                 _check_bearer(r)
@@ -379,7 +380,7 @@ def _gql(http, P, now_ms, out, arts):
                 if page == 1:
                     if new_sheet:
                         ready = core.day_ready(Q["lastUpdatedAt"], date)
-                        if ready is False:
+                        if ready is not True:
                             skipped_busy.append(date)
                             ok = False
                             break
@@ -390,15 +391,30 @@ def _gql(http, P, now_ms, out, arts):
                     else:
                         proven = True
                     total = Q["summary"] if Q.get("hasSummary") else None
+                    if new_sheet and (not total or total.get("pv", "") == "" or total.get("imp", "") == ""):
+                        out.setdefault("errors", []).append(f"新ダッシュボード {date}：日次合計が欠けています。未完了のまま次回に取ります")
+                        ok = False
+                        break
+                if Q.get("skipped"):
+                    out.setdefault("errors", []).append(f"新ダッシュボード {date}：記事キーを読めない行があります。未完了のまま次回に取ります")
+                    ok = False
+                    break
                 for x in Q["items"]:
+                    if x["key"] in seen_keys:
+                        raise core.NaError("PARSE", "新ダッシュボード：同じ記事が複数ページに出たため記録しませんでした")
+                    seen_keys.add(x["key"])
                     a = arts.get(x["key"])
                     rows.append({"date": date, "period": "日次", "key": x["key"], "title": a["title"] if a else "", "pv": x["pv"], "imp": x["imp"], "likes": x["likes"], "comments": x["comments"], "sales": x["sales"], "method": core.METHOD_GQL})
                 if not Q["hasNext"]:
                     break
                 after = Q["endCursor"]
                 if page == 10 or (not new_sheet and page >= min(10, P["dashPages"])):
-                    D["notes"].append(f"新ダッシュボード {date}：最大ページ数で止めました")
+                    out.setdefault("errors", []).append(f"新ダッシュボード {date}：最大ページ数で止めました。未完了のまま次回に取ります")
+                    ok = False
                     break
+                if after in seen_cursors:
+                    raise core.NaError("PARSE", "新ダッシュボード：ページの続きが進まないため記録しませんでした")
+                seen_cursors.add(after)
             if not ok:
                 continue
             out["pv"].extend(rows)
@@ -406,7 +422,7 @@ def _gql(http, P, now_ms, out, arts):
             if new_sheet:
                 t = total or {}
                 out["pv"].append({"date": date, "period": "日次合計", "key": "", "title": "", "pv": t.get("pv", ""), "imp": t.get("imp", ""), "likes": t.get("likes", ""),
-                                  "comments": t.get("comments", ""), "sales": t.get("sales", ""), "method": core.METHOD_GQL, "articles": len(rows)})
+                                  "comments": t.get("comments", ""), "sales": t.get("sales", ""), "method": core.METHOD_GQL, "articles": len(rows), "complete": True})
                 D["impDays"] += 1
                 pending.append(date)
         if skipped_busy:
@@ -432,3 +448,4 @@ def summary_message(out, requests):
     if out["errors"]:
         msg += "\nうまくいかなかったもの：\n- " + "\n- ".join(out["errors"][:5])
     return msg
+
