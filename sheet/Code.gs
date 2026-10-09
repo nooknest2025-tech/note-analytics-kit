@@ -1559,6 +1559,8 @@ function niSeries_(p, weeks) {
 
 /* 記事：読まれたのにスキが少ない／隠れた名作（スキ率）。rows は naArticleRows の形 [key, title, date, url, likes, comments, pv, yday, rate] */
 function niArticleInsight_(rows, now) {
+  // 記事カードと同じ日次のPV・スキ・率を使う。旧ビューによる推薦を残さない。
+  rows = (rows || []).map(function (r) { var v = r.slice(); v[6] = r[17]; v[4] = r[18]; v[8] = r[19]; return v; });
   var ok = (rows || []).filter(function (r) { return typeof r[6] === 'number' && r[6] >= 30 && typeof r[8] === 'number' && (now - Date.parse(String(r[2]).slice(0, 10) + 'T00:00:00+09:00')) >= 3 * NI_DAY; });
   if (ok.length < 8) return { n: ok.length, lowRate: [], hidden: [], medPv: null, medRate: null };
   var pvs = ok.map(function (r) { return r[6]; }), rates = ok.map(function (r) { return r[8]; });
