@@ -228,7 +228,7 @@ function naCallOtherAi_(provider, prompt, st) {
 }
 
 /* ===== note分析シート：共通ロジック（Apps Script とテストで共用。GAS の API は使わない） ===== */
-var NA_VERSION = '1.8.3';
+var NA_VERSION = '1.8.4';
 var NA_API = 'https://note.com/api';
 var NA_PAGE_SIZE = 6;            // 一覧 API は 1 ページ 6 件（2026-10 時点で確認）
 var NA_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -1226,21 +1226,29 @@ function naArticleRows(articles, pvd, g1, g7, imp) {
     var full = !!(cf && a.date && a.date >= cf && a.date <= ct);
     return [a.key, a.title, a.date, a.url, nz(a.likes), nz(a.comments), p, nz(yd[a.key]), rate, nz((g1 || {})[a.key]), nz((g7 || {})[a.key]),
       m ? m.imp : null, m && m.imp > 0 ? Math.round(m.pv / m.imp * 1000) / 10 : null, m ? m.days : null,
-      full ? (m ? m.imp : 0) : null, full ? (m ? m.pv : 0) : null, naStampOf(a.lastSeen)];
+      full ? (m ? m.imp : 0) : null, full ? (m ? m.pv : 0) : null, naStampOf(a.lastSeen), m ? m.pv : null, m && !m.missingLikes ? m.likes : null,
+      m && !m.missingLikes && m.pv > 0 ? Math.round(m.likes / m.pv * 1000) / 10 : null, m ? m.from : null, m ? m.to : null];
   });
 }
 /* 記事ごとのインプレッション（v1.8.0）：「PV入力」の日次でインプレッションの欄に数字がある行だけ。同じ日・同じ記事は最後の行。keys: {key: true} */
-function naImpByKey(pv, keys) {
+function naImpByKey(pv, keys, creator) {
   var day = {}, byKey = {}, days = {}, cov = {}, blank = function (v) { return v === '' || v === null || v === undefined; };
   pv.forEach(function (p) {
-    if (!p || !isFinite(p.t) || blank(p.imp)) return;
+    if (!p || !isFinite(p.t) || (creator && p.creator !== creator) || p.method !== NA_METHOD_GQL) return;
+    if (blank(p.imp) || blank(p.pv) || !isFinite(Number(p.imp)) || !isFinite(Number(p.pv)) || Number(p.imp) < 0 || Number(p.pv) < 0) return;
     if (p.period === '日次合計') { cov[naJst(p.t).date] = true; return; }   // アカウント全体の数字がある日＝その日は確認ずみ（v1.8.1）
     if (p.period !== '日次' || !p.key || (keys && !keys[p.key])) return;
     var d = naJst(p.t).date; (day[d] = day[d] || {})[p.key] = p; cov[d] = true;
   });
   Object.keys(day).forEach(function (d) {
     days[d] = true;
-    for (var k in day[d]) { var p = day[d][k], b = byKey[k] = byKey[k] || { imp: 0, pv: 0, days: 0 }; b.imp += naNum(p.imp); b.pv += naNum(p.pv); b.days++; }
+    for (var k in day[d]) {
+      var p = day[d][k], b = byKey[k] = byKey[k] || { imp: 0, pv: 0, likes: 0, missingLikes: false, days: 0, from: d, to: d };
+      b.imp += Number(p.imp); b.pv += Number(p.pv); b.days++;
+      b.from = d < b.from ? d : b.from; b.to = d > b.to ? d : b.to;
+      if (blank(p.likes) || !isFinite(Number(p.likes)) || Number(p.likes) < 0) b.missingLikes = true;
+      else b.likes += Number(p.likes);
+    }
   });
   var ds = Object.keys(days).sort(), cs = Object.keys(cov).sort(), covTo = cs[cs.length - 1] || '', contFrom = covTo;
   // contFrom：covTo からさかのぼって、1日も欠けずに記録がある最初の日（この日以降に公開した記事は「公開からの合計」が出せる）
@@ -2540,7 +2548,7 @@ function naGetDashboard() {
     mine.forEach(function (x) { keys[x.key] = true; });
     // PV は「記事」シートにない自分の記事（削除・限定公開など）の分も、全期間の合計に入れる（note のダッシュボードの合計に近づける）
     var pvKeys = {}; for (var kk in keys) pvKeys[kk] = true; pv.forEach(function (p) { if (p.key && p.creator === st.target) pvKeys[p.key] = true; });
-    var pvd = naPvByDay(pv, pvKeys), pvInList = Object.keys(pvd.totalByKey).filter(function (k) { return keys[k]; }).length, impK = naImpByKey(pv, keys), arts = naArticleRows(mine, pvd, naLikeGains(mine, snaps, now, 1), naLikeGains(mine, snaps, now, 7), impK);
+    var pvd = naPvByDay(pv, pvKeys), pvInList = Object.keys(pvd.totalByKey).filter(function (k) { return keys[k]; }).length, impK = naImpByKey(pv, keys, st.target), arts = naArticleRows(mine, pvd, naLikeGains(mine, snaps, now, 1), naLikeGains(mine, snaps, now, 7), impK);
     var hd = naDailyFromPv(pv, st.target, pvKeys);   // v1.8.2：ホームの推移のスキ・PVは note の日ごとの数字（自分の記録の差は使わない）
     var fl = series.filter(function (x) { return x[1] !== ''; }), fLast = fl.length ? fl[fl.length - 1] : null, fPrev = fl.length > 1 ? fl[fl.length - 2] : null;
     out.home = { pvYday: { date: pvd.lastDate, value: pvd.last, prevDate: pvd.prevDate, prev: pvd.prev }, pvTotal: { value: pvd.total, articles: pvd.totalArticles, inList: pvInList, date: pvd.totalDate },

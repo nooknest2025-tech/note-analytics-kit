@@ -823,7 +823,7 @@
     imp: ['インプレッション', '記事が一覧・おすすめ・検索結果などに表示された回数（note のダッシュボードの数字）。'],
     ctr: ['読まれた率', '表示（インプレッション）のうち、開いて読まれた割合＝PV÷インプレッション。検索やSNSなど外からのPVも入るので、100%をこえることがあります。'],
     likes: ['スキ', 'スキされた数（自分のスキは数えません）。'],
-    rate: ['スキ率', '読んだ人のうちスキした割合＝スキ÷PV。'],
+    rate: ['スキ率', '同じ日次記録のスキ合計÷PV合計。人数の割合ではありません。欠損がある場合やPVが0の場合は表示しません。'],
     comments: ['コメント', 'コメントの数（note の数字）。'],
     sales: ['売上', '有料記事などの売上（note のダッシュボードの数字・円）。'],
     fol: ['フォロワー', '記録した日のフォロワー数の増減。さかのぼっては取れません。'],
@@ -882,7 +882,7 @@
     put('top5', top.length ? top.map(function (r, i) {
       return el('a', { class: 'item', href: r[3] }, [el('span', { class: 'rank r' + (i + 1), text: i + 1 }), el('div', { class: 'body' }, [el('div', { class: 'tt', text: r[1] }),
         el('div', { class: 'mt' }, [isNum(r[7]) && r[7] > 0 ? chip('昨日 ' + fmt(r[7]) + ' PV', 'g') : null, isNum(r[9]) && r[9] ? chip('スキ ' + signed(r[9]) + '（1日）', r[9] > 0 ? 'new' : '') : null, isNum(r[10]) && r[10] ? chip(signed(r[10]) + '（7日）') : null, el('span', { text: '公開 ' + md(r[2]) })])]),
-        el('div', { class: 'big num' }, [fmt(r[4]), el('small', { text: 'スキ' })]), chev()]);
+        el('div', { class: 'big num' }, [fmt(r[4]), el('small', { text: 'スキ（累計）' })]), chev()]);
     }) : empty('🌱', 'まだ比べるデータがありません', '2回以上取得すると、スキが増えている記事・昨日よく読まれた記事がここに並びます。'));
   }
   // AIアシスタント（まとめて1回）。キーがないときは登録のしかた
@@ -997,7 +997,7 @@
   // [キー, 多い順（1回目）, 少ない順（もう一度押したとき）]。「スキが多い順」は2番目に置いて、スマホでもすぐ見えるように
   var SORTS = [['date', '新しい順', '古い順'], ['likes', 'スキが多い順', 'スキが少ない順'], ['pv', 'PVが多い順', 'PVが少ない順'], ['yday', '昨日のPV順', '昨日のPVが少ない順'], ['g7', '7日で伸びた順', '7日の伸びが小さい順'], ['rate', 'スキ率が高い順', 'スキ率が低い順'], ['comments', 'コメントが多い順', 'コメントが少ない順'],
     ['imp', '表示が多い順', '表示が少ない順'], ['ctr', '読まれた率が高い順', '読まれた率が低い順']];
-  var SORT_COL = { date: 2, pv: 6, yday: 7, likes: 4, rate: 8, comments: 5, g7: 10, imp: 11, ctr: 12 };
+  var SORT_COL = { date: 2, pv: 17, yday: 7, likes: 4, rate: 19, comments: 5, g7: 10, imp: 11, ctr: 12 };
   var ART_MIN_IMP = 100;   // 読まれた率を出す最低の表示回数（記録した日の合計）。たまたまの差が大きいため
   function artHasImp() { return !!(D && D.impInfo && D.impInfo.days); }
   // v1.8.1：「全期間」の数が note の旧い集計（stats/pv）のときは「ビュー（旧集計）」と書く（note の記事一覧の「ページビュー」とは数え方がちがうため）
@@ -1015,7 +1015,7 @@
     if (!artHasImp() && (ART.sort === 'imp' || ART.sort === 'ctr')) ART.sort = 'date';
     put('artSort', SORTS.filter(function (s) { return artHasImp() || (s[0] !== 'imp' && s[0] !== 'ctr'); }).map(function (s) {
       var on = ART.sort === s[0];
-      return el('button', { type: 'button', class: on ? 'on' : null, 'data-sort': s[0], 'aria-pressed': on ? 'true' : 'false', title: on ? 'もう一度押すと逆の順' : null, onclick: function () { if (ART.sort === s[0]) ART.asc = !ART.asc; else { ART.sort = s[0]; ART.asc = false; } ART.limit = 60; renderArtSort(); renderArticles(); } }, pvOldLabel(on && ART.asc ? s[2] : s[1], s[0]));
+      return el('button', { type: 'button', class: on ? 'on' : null, 'data-sort': s[0], 'aria-pressed': on ? 'true' : 'false', title: on ? 'もう一度押すと逆の順' : null, onclick: function () { if (ART.sort === s[0]) ART.asc = !ART.asc; else { ART.sort = s[0]; ART.asc = false; } ART.limit = 60; renderArtSort(); renderArticles(); } }, on && ART.asc ? s[2] : s[1]);
     }));
   }
   function renderArticles() {
@@ -1029,18 +1029,18 @@
     });
     $('artCount').textContent = list.length + '本' + (q ? '（「' + ART.q.trim() + '」で絞り込み）' : '') + ((D && D.articleCount > rows.length) ? '・新しい ' + rows.length + '本まで' : '');
     var imp = artHasImp(), II = (D && D.impInfo) || {};
-    put('artImpHint', imp ? ['表示＝インプレッション（' + ymdJ(II.from) + '〜' + ymdJ(II.to) + 'の記録 ' + II.days + '日分のうち、その記事に数字があった日の合計）', hq('imp'), '　公開からの合計（note の記事一覧と同じ数え方）', hq('life'), pvOld() ? '　ビュー（旧集計）は note の記事一覧の「ページビュー」とは数え方がちがいます' : '', pvOld() ? hq('pvOld') : null, '　読まれた率＝PV÷表示（表示' + ART_MIN_IMP + '回以上の記事だけ）', hq('ctr'), (pvOld() ? '　スキ率＝スキ÷ビュー（旧集計）' : '　スキ率＝スキ÷PV'), hq('rate')] : null);
+    put('artImpHint', imp ? ['表示＝インプレッション（' + ymdJ(II.from) + '〜' + ymdJ(II.to) + 'の記録 ' + II.days + '日分のうち、その記事に数字があった日の合計）', hq('imp'), '　公開からの合計（note の記事一覧と同じ数え方）', hq('life'), pvOld() ? '　ビュー（旧集計）は note の記事一覧の「ページビュー」とは数え方がちがいます' : '', pvOld() ? hq('pvOld') : null, '　読まれた率＝PV÷表示（表示' + ART_MIN_IMP + '回以上の記事だけ）', hq('ctr'), '　スキ率＝同じ日次記録のスキ÷PV（累計スキは使いません）', hq('rate')] : null);
     put('artList', list.length ? list.slice(0, ART.limit).map(function (r) {
       var hl = function (k) { return ART.sort === k ? 'on' : null; };
       return el('div', { class: 'arow' }, [link(r[1], r[3], 'tt'), el('div', { class: 'dt' }, [el('span', { text: '公開 ' + mdw(r[2]) }), isNum(r[7]) ? chip('昨日 ' + fmt(r[7]) + ' PV', 'g') : null, isNum(r[10]) && r[10] > 0 ? chip('スキ ' + signed(r[10]) + '（7日）', 'new') : null]),
-        el('div', { class: 'stats num' + (imp ? ' s6' : '') }, [el('div', { class: hl('pv') }, [el('b', { text: fmt(r[6]) }), el('span', { text: pvOld() ? 'ビュー（旧集計）' : 'PV' })]), el('div', { class: hl('likes') }, [el('b', { text: fmt(r[4]) }), el('span', { text: 'スキ' })]),
-          el('div', { class: hl('comments') }, [el('b', { text: fmt(r[5]) }), el('span', { text: 'コメント' })]), el('div', { class: hl('rate') }, [el('b', { text: isNum(r[8]) ? r[8] + '%' : '—' }), el('span', { text: 'スキ率' })]),
+        el('div', { class: 'stats num' + (imp ? ' s6' : '') }, [el('div', { class: hl('pv') }, [el('b', { text: fmt(r[17]) }), el('span', { text: 'PV（記録分）' })]), el('div', { class: hl('likes') }, [el('b', { text: fmt(r[4]) }), el('span', { text: 'スキ（累計）' })]),
+          el('div', { class: hl('comments') }, [el('b', { text: fmt(r[5]) }), el('span', { text: 'コメント（累計）' })]), el('div', { class: hl('rate') }, [el('b', { text: isNum(r[19]) ? r[19] + '%' : '—' }), el('span', { text: 'スキ率（日次）' })]),
           imp ? el('div', { class: hl('imp') }, [el('b', { text: fmt(r[11]) }), el('span', { text: isNum(r[13]) ? '表示（記録' + r[13] + '日）' : '表示' })]) : null,
           imp ? el('div', { class: (hl('ctr') || '') + (isNum(r[12]) && artCtr(r) === null ? ' low' : ''), title: isNum(r[12]) && artCtr(r) === null ? '表示が' + ART_MIN_IMP + '回未満なので出していません' : null }, [el('b', { text: isNum(artCtr(r)) ? artCtr(r) + '%' : '—' }), el('span', { text: '読まれた率' })]) : null]),
-        imp ? el('div', { class: 'life' }, lifeLine(r)) : null]);
+        imp ? el('div', { class: 'life' }, [lifeLine(r), el('div', {}, '日次記録：' + md(r[20]) + '〜' + md(r[21]) + '・' + fmt(r[13]) + '日分／スキ ' + fmt(r[18]) + ' ÷ PV ' + fmt(r[17]) + (pvOld() && isNum(r[6]) ? '／参考：ビュー（旧集計） ' + fmt(r[6]) : ''))]) : null]);
     }) : empty('🔍', q ? '見つかりませんでした' : '記事がまだありません', q ? '別のことばで探してみてください。' : '「今すぐ取得する」で記事一覧を取ってきます。'));
     $('artMore').classList.toggle('hidden', list.length <= ART.limit); $('artMore').textContent = 'もっと見る（全' + list.length + '件中' + Math.min(list.length, ART.limit) + '件を表示）';
-    $('artMeta').textContent = rows.some(function (r) { return isNum(r[6]); }) ? (pvOld() ? 'ビュー＝note の旧い集計（全期間）' : 'PV・スキ率は「PV入力」の全期間の値から') : 'PVを記録すると、PV・スキ率も並びます';
+    $('artMeta').textContent = 'PV・表示・スキ率は同じ日次記録の集計。累計スキ・旧ビューとは期間が異なります。';
   }
   $('artQ').addEventListener('input', function () { ART.q = this.value; ART.limit = 60; renderArticles(); });
   $('artMore').onclick = function () { ART.limit += 60; renderArticles(); };
