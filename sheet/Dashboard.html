@@ -869,9 +869,10 @@
   function logState(r) { r = String(r || ''); return /成功|完了/.test(r) && !/エラー|失敗/.test(r) ? 'ok' : /エラー|失敗|止/.test(r) ? 'ng' : 'wait'; }
   function renderKpis(d) {
     var h = d.home || {}, f = d.fans, py = h.pvYday || {}, pt = h.pvTotal || {}, fw = h.followers || {}, lg = d.lastLog, st = lg ? logState(lg.result) : 'wait';
+    var pv30 = (h.trend || []).filter(function (r) { return isNum(r[1]); }), pv30sum = pv30.reduce(function (n, r) { return n + r[1]; }, 0);
     put('kpis', [
       kpi(py.date ? mdw(py.date) + 'のPV' : '昨日のPV', fmt(py.value), '', isNum(py.value) ? [isNum(py.prev) ? delta(py.value - py.prev) : null, isNum(py.prev) ? (py.prevDate ? md(py.prevDate) + 'より' : '') : '前の日の記録はまだ'] : ['日次のPVがまだありません'], 'hero'),
-      kpi(pvOld() ? 'ビュー（旧集計・全期間）' : '全期間のPV', fmt(pt.value), '', isNum(pt.value) ? [(pvOld() ? '取れた' : 'PVが取れた') + fmt(pt.articles) + '記事の合計' + (pt.date ? '・' + md(pt.date) + '時点' : '')] : ['PVを記録すると出ます']),
+      kpi('直近30日のPV', pv30.length ? fmt(pv30sum) : '—', '', pv30.length ? ['記録 ' + pv30.length + '日分（' + md(pv30[0][0]) + '〜' + md(pv30[pv30.length - 1][0]) + '）', '下の推移と同じ日次PVの合計。今日の分は翌朝。'] : ['日次のPVがまだありません']),
       kpi('フォロワー', fmt(fw.value), '人', isNum(fw.value) ? [isNum(fw.prev) ? delta(fw.value - fw.prev) : null, isNum(fw.prev) ? (fw.prevDate ? md(fw.prevDate) + 'より' : '') : '前の記録はまだ', folRecStart()] : ['まだ記録がありません']),
       kpi('新しいファン', f ? fmt(h.newFans) : '—', f ? '人' : '', f ? ['前回の取得から', h.weekFansCount ? chip('今週 ' + h.weekFansCount + '人', 'g') : null] : ['「誰からのスキ」を記録すると出ます']),
       kpi('未返信のコメント', f && h.hasComments ? fmt(h.unrepliedCount) : '—', f && h.hasComments ? '件' : '', f && h.hasComments ? [h.unrepliedCount ? '記録した時点' : chip('ぜんぶ返信済み', 'ok')] : ['「コメントした人」を記録すると出ます'], f && h.unrepliedCount ? 'alert' : ''),
